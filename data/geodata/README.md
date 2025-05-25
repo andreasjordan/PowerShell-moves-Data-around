@@ -1,0 +1,1 @@
+During setup, files with sample data will be downloaded to this directory.

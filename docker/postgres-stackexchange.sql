@@ -1,0 +1,42 @@
+CREATE USER stackexchange WITH PASSWORD 'Passw0rd!';
+CREATE DATABASE stackexchange WITH OWNER stackexchange;
+
+\connect stackexchange
+
+CREATE TABLE Badges (Id INT NOT NULL, Name VARCHAR(40) NULL, UserId INT NOT NULL, CreationDate TIMESTAMP(3) NOT NULL, CONSTRAINT Badges_PK PRIMARY KEY (Id));
+CREATE TABLE Comments (Id INT NOT NULL, CreationDate TIMESTAMP(3) NOT NULL, PostId INT NOT NULL, Score INT NULL, Text VARCHAR(700) NULL, UserId INT NULL, CONSTRAINT Comments_PK PRIMARY KEY (Id));
+CREATE TABLE LinkTypes (Id INT NOT NULL, Type VARCHAR(50) NULL, CONSTRAINT LinkTypes_PK PRIMARY KEY (Id));
+CREATE TABLE PostLinks (Id INT NOT NULL, CreationDate TIMESTAMP(3) NOT NULL, PostId INT NOT NULL, RelatedPostId INT NOT NULL, LinkTypeId INT NOT NULL, CONSTRAINT PostLinks_PK PRIMARY KEY (Id));
+CREATE TABLE Posts (Id INT NOT NULL, AcceptedAnswerId INT NULL, AnswerCount INT NULL, Body TEXT NOT NULL, ClosedDate TIMESTAMP(3) NULL, CommentCount INT NULL, CommunityOwnedDate TIMESTAMP(3) NULL, CreationDate TIMESTAMP(3) NOT NULL, FavoriteCount INT NULL, LastActivityDate TIMESTAMP(3) NOT NULL, LastEditDate TIMESTAMP(3) NULL, LastEditorDisplayName VARCHAR(40) NULL, LastEditorUserId INT NULL, OwnerUserId INT NULL, ParentId INT NULL, PostTypeId INT NOT NULL, Score INT NOT NULL, Tags VARCHAR(150) NULL, Title VARCHAR(250) NULL, ViewCount INT NULL, CONSTRAINT Posts_PK PRIMARY KEY (Id));
+CREATE TABLE PostTypes (Id INT NOT NULL, Type VARCHAR(50) NULL, CONSTRAINT PostTypes_PK PRIMARY KEY (Id));
+CREATE TABLE Users (Id INT NOT NULL, AboutMe TEXT NULL, Age INT NULL, CreationDate TIMESTAMP(3) NOT NULL, DisplayName VARCHAR(40) NULL, DownVotes INT NOT NULL, EmailHash VARCHAR(40) NULL, LastAccessDate TIMESTAMP(3) NOT NULL, Location VARCHAR(100) NULL, Reputation INT NOT NULL, UpVotes INT NOT NULL, Views INT NOT NULL, WebsiteUrl VARCHAR(200) NULL, AccountId INT NULL, CONSTRAINT Users_PK PRIMARY KEY (Id));
+CREATE TABLE Votes (Id INT NOT NULL, PostId INT NOT NULL, UserId INT NULL, BountyAmount INT NULL, VoteTypeId INT NOT NULL, CreationDate TIMESTAMP(3) NOT NULL, CONSTRAINT Votes_PK PRIMARY KEY (Id));
+CREATE TABLE VoteTypes (Id INT NOT NULL, Name VARCHAR(50) NULL, CONSTRAINT VoteTypes_PK PRIMARY KEY (Id));
+
+CREATE TABLE Import_Badges (Id INT NOT NULL, Name VARCHAR(40) NULL, UserId INT NOT NULL, CreationDate TIMESTAMP(3) NOT NULL);
+CREATE TABLE Import_Comments (Id INT NOT NULL, CreationDate TIMESTAMP(3) NOT NULL, PostId INT NOT NULL, Score INT NULL, Text VARCHAR(700) NULL, UserId INT NULL);
+CREATE TABLE Import_LinkTypes (Id INT NOT NULL, Type VARCHAR(50) NULL);
+CREATE TABLE Import_PostLinks (Id INT NOT NULL, CreationDate TIMESTAMP(3) NOT NULL, PostId INT NOT NULL, RelatedPostId INT NOT NULL, LinkTypeId INT NOT NULL);
+CREATE TABLE Import_Posts (Id INT NOT NULL, AcceptedAnswerId INT NULL, AnswerCount INT NULL, Body TEXT NOT NULL, ClosedDate TIMESTAMP(3) NULL, CommentCount INT NULL, CommunityOwnedDate TIMESTAMP(3) NULL, CreationDate TIMESTAMP(3) NOT NULL, FavoriteCount INT NULL, LastActivityDate TIMESTAMP(3) NOT NULL, LastEditDate TIMESTAMP(3) NULL, LastEditorDisplayName VARCHAR(40) NULL, LastEditorUserId INT NULL, OwnerUserId INT NULL, ParentId INT NULL, PostTypeId INT NOT NULL, Score INT NOT NULL, Tags VARCHAR(150) NULL, Title VARCHAR(250) NULL, ViewCount INT NULL);
+CREATE TABLE Import_PostTypes (Id INT NOT NULL, Type VARCHAR(50) NULL);
+CREATE TABLE Import_Users (Id INT NOT NULL, AboutMe TEXT NULL, Age INT NULL, CreationDate TIMESTAMP(3) NOT NULL, DisplayName VARCHAR(40) NULL, DownVotes INT NOT NULL, EmailHash VARCHAR(40) NULL, LastAccessDate TIMESTAMP(3) NOT NULL, Location VARCHAR(100) NULL, Reputation INT NOT NULL, UpVotes INT NOT NULL, Views INT NOT NULL, WebsiteUrl VARCHAR(200) NULL, AccountId INT NULL);
+CREATE TABLE Import_Votes (Id INT NOT NULL, PostId INT NOT NULL, UserId INT NULL, BountyAmount INT NULL, VoteTypeId INT NOT NULL, CreationDate TIMESTAMP(3) NOT NULL);
+CREATE TABLE Import_VoteTypes (Id INT NOT NULL, Name VARCHAR(50) NULL);
+
+ALTER TABLE Badges OWNER TO stackexchange;
+ALTER TABLE Comments OWNER TO stackexchange;
+ALTER TABLE LinkTypes OWNER TO stackexchange;
+ALTER TABLE PostLinks OWNER TO stackexchange;
+ALTER TABLE PostTypes OWNER TO stackexchange;
+ALTER TABLE Users OWNER TO stackexchange;
+ALTER TABLE Votes OWNER TO stackexchange;
+ALTER TABLE VoteTypes OWNER TO stackexchange;
+
+ALTER TABLE Import_Badges OWNER TO stackexchange;
+ALTER TABLE Import_Comments OWNER TO stackexchange;
+ALTER TABLE Import_LinkTypes OWNER TO stackexchange;
+ALTER TABLE Import_PostLinks OWNER TO stackexchange;
+ALTER TABLE Import_PostTypes OWNER TO stackexchange;
+ALTER TABLE Import_Users OWNER TO stackexchange;
+ALTER TABLE Import_Votes OWNER TO stackexchange;
+ALTER TABLE Import_VoteTypes OWNER TO stackexchange;

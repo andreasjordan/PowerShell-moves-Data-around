@@ -1,0 +1,106 @@
+# Requires: Docker Compose 2.30.0 and later
+name: powershell-moves-data-around
+services:
+
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    ports:
+      - 1433:1433
+    environment:
+      MSSQL_SA_PASSWORD: '${MSSQL_SA_PASSWORD}'
+      ACCEPT_EULA: Y
+      MSSQL_PID: Developer
+      MSSQL_AGENT_ENABLED: True
+    mem_limit: 2gb
+    volumes:
+      - sqlserver:/var/opt/mssql
+      - ./sqlserver-init.sh:/init-scripts/init.sh:ro
+      - ./sqlserver-timesheets.sql:/init-scripts/timesheets.sql:ro
+      - ./sqlserver-stackexchange.sql:/init-scripts/stackexchange.sql:ro
+      - ./sqlserver-geodata.sql:/init-scripts/geodata.sql:ro
+      - ./sqlserver-photoservice.sql:/init-scripts/photoservice.sql:ro
+    command: [ "bash", "/init-scripts/init.sh" ]
+
+  oracle:
+    image: container-registry.oracle.com/database/express:latest
+    ports:
+      - 1521:1521
+    environment:
+      ORACLE_PWD: '${ORACLE_PWD}'
+      ORACLE_CHARACTERSET: AL32UTF8
+    mem_limit: 3gb
+    volumes:
+      - oracle:/opt/oracle
+      - ./oracle-stackexchange.sql:/opt/oracle/scripts/startup/stackexchange.sql:ro 
+      - ./oracle-geodata.sql:/opt/oracle/scripts/startup/geodata.sql:ro
+
+  postgres:
+    image: postgis/postgis:latest
+    ports:
+      - 5432:5432
+    environment:
+      POSTGRES_PASSWORD: '${POSTGRES_PASSWORD}'
+    mem_limit: 1gb
+    volumes:
+      - postgres:/var/lib/postgresql/data
+      - ./postgres-stackexchange.sql:/docker-entrypoint-initdb.d/stackexchange.sql:ro
+      - ./postgres-geodata.sql:/docker-entrypoint-initdb.d/geodata.sql:ro
+      - ./postgres-photoservice.sql:/docker-entrypoint-initdb.d/photoservice.sql:ro
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    ports:
+      - 5050:80
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: 'False'
+      PGPASS_FILE: /pgadmin4/pgpass
+      PGADMIN_DISABLE_POSTFIX: 'True'
+    volumes:
+      - ./pgadmin-servers.json:/pgadmin4/servers.json:ro
+      - ./pgadmin-pgpass:/pgadmin4/pgpass:ro
+
+  mongo:
+    image: mongo:latest
+    ports:
+      - 27017:27017
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+    volumes:
+      - mongo:/data/db
+      - ./mongo-init.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
+
+  minio:
+    image: quay.io/minio/minio:latest
+    ports:
+      - 9000:9000
+      - 9001:9001
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - minio:/data
+      - ./minio-init.sh:/etc/minio/init/init.sh:ro
+      - ./minio-policy-photoservice.json:/etc/minio/init/policy-photoservice.json:ro
+      - ./minio-policy-stackexchange.json:/etc/minio/init/policy-stackexchange.json:ro
+    entrypoint: /etc/minio/init/init.sh
+
+  photoservice:
+    image: mcr.microsoft.com/powershell:7.5-ubuntu-24.04
+    volumes:
+      - ./photoservice-app.ps1:/PhotoService/app.ps1:ro
+      - ./photoservice-CustomerSource.json:/PhotoService/CustomerSource.json:ro
+      - /usr/local/share/powershell/Modules:/usr/local/share/powershell/Modules:ro
+      - ../lib:/PhotoService/lib:ro
+    working_dir: /PhotoService
+    command: pwsh -File /PhotoService/app.ps1
+
+volumes:
+  sqlserver: {}
+  oracle: {}
+  postgres: {}
+  mongo: {}
+  minio: {}

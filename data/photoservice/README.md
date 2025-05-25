@@ -1,0 +1,1 @@
+The files to this directory are used in the demo "PhotoService". The photos were taken by myself. 

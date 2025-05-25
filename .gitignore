@@ -1,0 +1,5 @@
+lib/*.dll
+data/timesheets/*.xlsx
+data/stackexchange/*.xml
+data/geodata/*.gpx
+data/geodata/*.geojson
