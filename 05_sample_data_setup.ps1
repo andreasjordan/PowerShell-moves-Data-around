@@ -1,6 +1,7 @@
 $ErrorActionPreference = 'Stop'
 
-Import-Module PSFramework, ImportExcel
+Import-Module PSFramework
+Import-Module ImportExcel 3>$null
 Write-PSFMessage -Level Host -Message 'Importing PowerShell functions'
 foreach ($file in (Get-ChildItem -Path $PSScriptRoot/lib/*-*.ps1)) { . $file.FullName }
 $PSDefaultParameterValues = @{
@@ -89,15 +90,12 @@ $stackexchange = @{
 }
 $stackexchange.MioCredential = [PSCredential]::new($stackexchange.MioUser, ($stackexchange.MioPassword | ConvertTo-SecureString -AsPlainText -Force))
 $stackexchange.MioConnection = Connect-MioInstance -Instance $stackexchange.MioInstance -Credential $stackexchange.MioCredential -Bucket $stackexchange.MioBucket
-if (-not (Test-Path -Path $stackexchange.DataPath)) {
-    $null = New-Item -Path $stackexchange.DataPath -ItemType Directory
-    Write-PSFMessage -Level Host -Message 'Downloading StackExchange data'
-    Push-Location -Path $stackexchange.DataPath
-    Invoke-WebRequest -Uri "https://archive.org/download/stackexchange/$($stackexchange.Site).stackexchange.com.7z" -OutFile tmp.7z -UseBasicParsing
-    $null = 7za e tmp.7z
-    Remove-Item -Path tmp.7z
-    Pop-Location
-}
+Write-PSFMessage -Level Host -Message 'Downloading StackExchange data'
+Push-Location -Path $stackexchange.DataPath
+Invoke-WebRequest -Uri "https://archive.org/download/stackexchange/$($stackexchange.Site).stackexchange.com.7z" -OutFile tmp.7z -UseBasicParsing
+$null = 7za e tmp.7z
+Remove-Item -Path tmp.7z
+Pop-Location
 Write-PSFMessage -Level Host -Message 'Importing StackExchange data to MinIO'
 $files = Get-ChildItem -Path $stackexchange.DataPath
 foreach ($file in $files) {
@@ -112,23 +110,20 @@ foreach ($file in $files) {
 $geodata = @{
     DataPath    = 'data/geodata'
 }
-if (-not (Test-Path -Path $geodata.DataPath)) {
-    $null = New-Item -Path $geodata.DataPath -ItemType Directory
-    Push-Location -Path $geodata.DataPath
-    Write-PSFMessage -Level Host -Message 'Downloading GPX data from berlin.de'
-    Invoke-WebRequest -Uri https://www.berlin.de/sen/uvk/_assets/verkehr/verkehrsplanung/radverkehr/radrouten/radrouten_komplett.7z -OutFile tmp.7z -UseBasicParsing
-    $null = 7za x tmp.7z
-    Start-Sleep -Seconds 2
-    Remove-Item -Path tmp.7z
-    Rename-Item -Path radrouten_komplett -NewName radrouten-berlin
-    Write-PSFMessage -Level Host -Message 'Downloading GPX data from michael-mueller-verlag.de'
-    Invoke-WebRequest -Uri https://mmv.me/52630/00.gpx -OutFile michael-mueller-verlag-berlin.gpx -UseBasicParsing
-    Write-PSFMessage -Level Host -Message 'Downloading GeoJSON data from datahub.io'
-    $geoJSON = Invoke-RestMethod -Method Get -Uri https://datahub.io/core/geo-countries/r/0.geojson
-    # Optional: Just select all EU countries
-    # $geoJSON.features = $geoJSON.features | Where-Object { $_.properties.'ISO3166-1-Alpha-3' -in 'AUT','BEL','BGR','HRV','CYP','CZE','DNK','EST','FIN','DEU','GRC','HUN','IRL','ITA','LVA','LTU','LUX','MLT','NLD','POL','PRT','ROU','SVK','SVN','ESP','SWE' -or $_.properties.name -in 'France'}
-    $geoJSON | ConvertTo-Json -Depth 9 -Compress | Set-Content -Path countries.geojson
-    Pop-Location
-}
+Push-Location -Path $geodata.DataPath
+Write-PSFMessage -Level Host -Message 'Downloading GPX data from berlin.de'
+Invoke-WebRequest -Uri https://www.berlin.de/sen/uvk/_assets/verkehr/verkehrsplanung/radverkehr/radrouten/radrouten_komplett.7z -OutFile tmp.7z -UseBasicParsing
+$null = 7za x tmp.7z
+Start-Sleep -Seconds 2
+Remove-Item -Path tmp.7z
+Rename-Item -Path radrouten_komplett -NewName radrouten-berlin
+Write-PSFMessage -Level Host -Message 'Downloading GPX data from michael-mueller-verlag.de'
+Invoke-WebRequest -Uri https://mmv.me/52630/00.gpx -OutFile michael-mueller-verlag-berlin.gpx -UseBasicParsing
+Write-PSFMessage -Level Host -Message 'Downloading GeoJSON data from datahub.io'
+$geoJSON = Invoke-RestMethod -Method Get -Uri https://datahub.io/core/geo-countries/r/0.geojson
+# Optional: Just select all EU countries
+# $geoJSON.features = $geoJSON.features | Where-Object { $_.properties.'ISO3166-1-Alpha-3' -in 'AUT','BEL','BGR','HRV','CYP','CZE','DNK','EST','FIN','DEU','GRC','HUN','IRL','ITA','LVA','LTU','LUX','MLT','NLD','POL','PRT','ROU','SVK','SVN','ESP','SWE' -or $_.properties.name -in 'France'}
+$geoJSON | ConvertTo-Json -Depth 9 -Compress | Set-Content -Path countries.geojson
+Pop-Location
 
 Write-PSFMessage -Level Host -Message 'Finished'
