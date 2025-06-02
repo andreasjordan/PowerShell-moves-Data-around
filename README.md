@@ -61,7 +61,7 @@ This scenario needs PowerShell 7.
 - Data from GPX files will be imported into SQL Server database
 MORE DEMO CODE WILL BE PUBLISHED LATER...
 
-This scenario need PowerShell 7.
+This scenario needs PowerShell 7.
 
 
 ### PhotoService
@@ -70,7 +70,7 @@ This scenario need PowerShell 7.
 - Binary data with jpeg images is imported to PostgreSQL
 MORE DEMO CODE WILL BE PUBLISHED LATER...
 
-This scenario need PowerShell 7.
+This scenario needs PowerShell 7.
 
 
 
