@@ -20,6 +20,7 @@ If you would like assistance with productive use, please contact me.
 - JSON files
 - XML files
 - GPX files
+- JPEG files
 
 
 
