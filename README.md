@@ -60,6 +60,7 @@ This scenario needs PowerShell 7.
 - Setup: GPX files will be downloaded from michael-mueller-verlag.de/de/reisefuehrer/deutschland/berlin-city/gps-daten/
 - Setup: JSON file will be downloaded from datahub.io/core/geo-countries
 - Data from GPX files will be imported into SQL Server database
+
 MORE DEMO CODE WILL BE PUBLISHED LATER...
 
 This scenario needs PowerShell 7.
@@ -69,6 +70,7 @@ This scenario needs PowerShell 7.
 
 - Setup: The PhotoService application is running inside of a container and is constantly creating data
 - Binary data with jpeg images is imported to PostgreSQL
+
 MORE DEMO CODE WILL BE PUBLISHED LATER...
 
 This scenario needs PowerShell 7.
