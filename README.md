@@ -16,7 +16,7 @@ If you would like assistance with productive use, please contact me.
 - PostgreSQL
 - MongoDB
 - MinIO
-- Micosoft Excel
+- Microsoft Excel
 - JSON files
 - XML files
 - GPX files
