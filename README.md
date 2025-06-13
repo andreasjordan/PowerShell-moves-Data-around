@@ -1,3 +1,4 @@
+![logo](logo.png)
 # PowerShell moves Data around
 
 This repository provides infrastructure as code, sample data and demo code to show how PowerShell can move data around.
