@@ -87,26 +87,54 @@ The initial PowerShell code needs to be run inside the WSL2 to setup the sample 
 The demo PowerShell code can run both inside the WSL2 or on the Windows 11 system. But for all demos to work, you need at least PowerShell 7.5.
 
 
-### Step by step setup
+### Install WSL2
 
-Download and extract or clone this repository to a location of your choice.
+I use the default image Ubuntu by just executing `wsl --install` in an elevated cmd or powershell on a current Windows 11 systems. To start from scratch you can remove the Ubuntu by running `wsl --unregister Ubuntu`. Start Ubuntu with `wsl` and follow the instructions to create the unix account. The name of the accout and the password don't matter.
 
-Setup WSL2. I use the default image Ubuntu by just executing `wsl --install` in an elevated cmd or powershell on a current Windows 11 systems. To start from scratch you can remove the Ubuntu by running `wsl --unregister Ubuntu`. Start Ubuntu via start menu and follow the instructions to create the unix account. The name of the accout and the password don't matter - use a short password as you need it from time to time for sudo.
 
-Use the windows explorer to navigate to the base folder, right click on "01_wsl2_get_symlink_part1.ps1" and use "execute with powershell" to execute this small one liner. It builds the unix commandline to add a symbolic link from /mnt/powershell-moves-data-around to the base folder inside of the wsl and then executes all the following scripts. This commandline is copied to the clipboard so that you can just past it inside on the WSL2 for an easy start.
+### Clone or download the repository
 
-If you don't like that solution, just navigate to the base folder inside of the WSL2 and then execute all the scripts in the base folder. Start with the shell script "02_wsl2_setup.sh" with `sudo ./02_wsl2_setup.sh`.
+Open a non-elevated powershell.exe and go to a folder of your choice, I will use "C:\tmp" in this guide:
 
-If you already have an environment that you want to use, please have a look at the contents of "02_wsl2_setup.sh" to setup the needed components.
+```
+if (-not (Test-Path -Path C:\tmp)) {
+    $null = New-Item -Path C:\tmp -ItemType Directory
+}
+Set-Location -Path C:\tmp
+```
 
-To be able to connect to the database systems, some PowerShell modules and .NET libraries are needed. To download them, execute "03_pwsh_setup.ps1" with `sudo pwsh ./03_pwsh_setup.ps1`. As we also need the PowerShell modules inside of a container, it it important to run the command with sudo to install them in the "all users" scope to "/usr/local/share/powershell/Modules". This script can also be used to setup powershell on the Windows system. Make sure to execute it with PowerShell 7, PowerShell 5.1 is not supported.
+If you have git installed, you can just clone the repository:
 
-At this point, the command line from "01_wsl2_get_symlink_part1.ps1" uses "wsl.exe --shutdown" to shutdown the WSL2. I still don't know exactly why, but if we start docker compose before rebooting the WSL2, the containers are reachable from the host, but can not connect to each other or the internet.
+```
+git clone https://github.com/andreasjordan/PowerShell-moves-Data-around.git
+```
 
-After we have started the WSL2 again, right click on "01_wsl2_get_symlink_part2.ps1" and use "execute with powershell" to execute this small one liner for the second part of the setup. This will change the directory to the base folder and then starts the rest of the scripts.
+Or you can download and extract the repository:
 
-Now we can start the docker containers with "sudo docker compose up -d" inside of the directory "docker" or by executing the script "04_docker_compose.sh" with `sudo ./04_docker_compose.sh`. This might take a long time as big images like oracle are pulled from the internet.
+```
+[Net.WebClient]::new().DownloadFile('https://github.com/andreasjordan/PowerShell-moves-Data-around/archive/refs/heads/main.zip', "$PWD\PowerShell-moves-Data-around.zip")
+Expand-Archive -Path $PWD\PowerShell-moves-Data-around.zip -DestinationPath $PWD
+Rename-Item -Path $PWD\PowerShell-moves-Data-around-main -NewName PowerShell-moves-Data-around
+Remove-Item -Path $PWD\PowerShell-moves-Data-around.zip
+Get-ChildItem -Path $PWD\PowerShell-moves-Data-around -Filter *.ps1 -Recurse | Unblock-File
+```
 
-Only a small part of the sample data is included in this repository, most of data needs to be downloaded from the internet and processed. This is done by the PowerShell script "05_sample_data_setup.ps1" which can be executed with `pwsh ./05_sample_data_setup.ps1`.
 
-To test the connections to the databases inside of the docker containers, the script "06_test_connections.ps1" is executed as the last part of the setup with `pwsh ./06_test_connections.ps1`.
+### Start the installation
+
+To run all the setup steps just execute "01_setup.ps1" in a non-elevated powershell.exe:
+
+```
+.\PowerShell-moves-Data-around\01_setup.ps1
+```
+
+At the end, the script enters the WSL2 to keep all docker containers running. If you exit, it will shutdown WSL2 with all containers.
+
+
+### Restart the docker containers
+
+To restart the containers use "99_start.ps1":
+
+```
+.\PowerShell-moves-Data-around\99_start.ps1
+```

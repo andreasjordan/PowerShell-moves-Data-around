@@ -1,1 +1,0 @@
-"sudo ln -s '/mnt/$($PWD.Drive.Name.ToLower())$($PWD.Path.Replace('\', '/').Substring(2))' /mnt/powershell-moves-data-around && cd /mnt/powershell-moves-data-around && sudo ./02_wsl2_setup.sh && sudo pwsh ./03_pwsh_setup.ps1 && wsl.exe --shutdown" | Set-Clipboard
