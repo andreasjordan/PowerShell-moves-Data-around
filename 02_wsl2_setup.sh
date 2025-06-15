@@ -1,10 +1,18 @@
 #!/bin/bash
 
 # setup DNS
-echo "[network]" >> /etc/wsl.conf && \
-echo "generateResolvConf = false" >> /etc/wsl.conf && \
-rm /etc/resolv.conf && \
-echo "nameserver 1.1.1.1" > /etc/resolv.conf && \
+# DNS inside of WSL2 is sometimes a problem
+# In the beginning, /etc/resolv.conf is a symlink to /mnt/wsl/resolv.conf and name resolution works
+# Problem: Sometimes, etc/resolv.conf is a symlink to ../run/systemd/resolve/stub-resolv.conf and it does not work
+# Workaround 1: Configure a static /etc/resolv.conf with the DNS server of your choice
+# Problem: Sometimes, etc/resolv.conf is removed again and recreated as a symlink to ../run/systemd/resolve/stub-resolv.conf
+#echo "[network]" >> /etc/wsl.conf && \
+#echo "generateResolvConf = false" >> /etc/wsl.conf && \
+#rm /etc/resolv.conf && \
+#echo "nameserver 1.1.1.1" > /etc/resolv.conf && \
+# Workaround 2: Configure systemd-resolved with the DNS server of your choice
+# Problem: Not tested yet
+#echo "DNS=1.1.1.1" >> /etc/systemd/resolved.conf && \
 
 # update packages
 apt update && \
