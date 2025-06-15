@@ -86,6 +86,8 @@ The initial PowerShell code needs to be run inside the WSL2 to setup the sample 
 
 The demo PowerShell code can run both inside the WSL2 or on the Windows 11 system. But for all demos to work, you need at least PowerShell 7.5.
 
+A video of the installation is available here: https://youtu.be/0NNNqPau4Go
+
 
 ### Install WSL2
 
