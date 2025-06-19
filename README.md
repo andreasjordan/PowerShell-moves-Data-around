@@ -43,6 +43,8 @@ The code is both tested on Windows 11 and an Ubuntu WSL2.
 
 This scenario can be run with both PowerShell 5.1 and PowerShell 7.
 
+I have recorded a [Video](https://youtu.be/UnTFhbC3JVE) of the demo.
+
 
 ### StackExchange
 
