@@ -5,6 +5,18 @@
 
 $ErrorActionPreference = 'Stop'
 
+# What demo data do we have?
+Get-ChildItem -Path ..\data\timesheets
+
+# Let's open the Excel files and have a look at the data
+& ..\data\timesheets\DepartmentA.xlsx
+& ..\data\timesheets\DepartmentB.xlsx
+& ..\data\timesheets\DepartmentC.xlsx
+
+
+
+
+
 # Only once to install the module:
 # Install-Module -Name ImportExcel -Scope CurrentUser
 Import-Module -Name ImportExcel
@@ -17,24 +29,23 @@ $excelData.GetType().FullName          # We have an array of objects
 $excelData[0].GetType().FullName       # The elements are of type PSCustomObject
 $excelData[0].date.GetType().FullName  # The "date" is of type System.DateTime
 
-# There is one empty row at the ende - we have to filter that later
-
 # PowerShell can present us the data as a "table"
 $excelData | Format-Table
 
-
-# Let's prepare the data for the import to a SQL Server database
-$excelData = Import-Excel -Path ..\data\timesheets\DepartmentA.xlsx -WorksheetName PersonA -StartRow 3 -AsDate date, time_from, time_to -DataOnly
-$excelData
-
-# We have more information:
+# But we have more information:
 # "Department" as the name of the file (yes, we can get a list of all Excel files in a directory)
 # "Person" as the name of the worksheet (yes, we can get a list of all worksheets in an Excel file)
 
-# We have to calculate some data:
+# And we have to calculate some data:
 # Combine date and time_from / date and time_to
 
-# So we need this table:
+
+
+
+
+# So let's talk about the target data structure and create the table
+
+# We need this table:
 $createTableQuery = @'
 CREATE TABLE dbo.Timesheet (
   Department VARCHAR(100),
@@ -51,7 +62,6 @@ CREATE TABLE dbo.Timesheet (
   )
 )
 '@
-
 
 # To create the table, we need to connect to the database and execute the query
 
@@ -72,6 +82,9 @@ Invoke-SqlQuery -Connection $connection -Query $createTableQuery
 
 
 
+
+
+# Now we know what data we have and how the target table looks like
 # Let's prepare the data (the "T" in "ETL")
 
 # We start with only the first row
@@ -83,6 +96,7 @@ $start = $row.date.AddHours($row.time_from.TimeOfDay.TotalHours)
 $end = $row.date.AddHours($row.time_to.TimeOfDay.TotalHours)
 $project = $row.project
 $task = $row.task
+
 
 # We start with a bad idea: Create the insert statement by concatenating strings
 $insertQuery = "INSERT INTO dbo.Timesheet VALUES ('$department', '$person', '$start', '$end', '$project', '$task')"
@@ -144,11 +158,17 @@ Write-SqlTable -Connection $connection -Table dbo.Timesheet -Data $excelData -Tr
 Invoke-SqlQuery -Connection $connection -Query 'SELECT * FROM dbo.Timesheet' | Format-Table
 
 
+
+
+
 # Select data for a report and create Excel file
 
-$projectData = Invoke-SqlQuery -Connection $connection -Query 'SELECT Project, SUM(DATEDIFF(minute, Start, "End")) AS ProjectMinutesWorked FROM dbo.Timesheet GROUP BY Project'
+$projectQuery = 'SELECT Project, SUM(DATEDIFF(minute, Start, "End")) AS ProjectMinutesWorked FROM dbo.Timesheet GROUP BY Project'
+$projectData = Invoke-SqlQuery -Connection $connection -Query $projectQuery
 $projectData
-$dateData = Invoke-SqlQuery -Connection $connection -Query 'SELECT CAST(Start AS DATE) AS "Date", SUM(DATEDIFF(minute, Start, "End")) AS DateMinutesWorked FROM dbo.Timesheet GROUP BY CAST(Start AS DATE)'
+
+$dateQuery = 'SELECT CAST(Start AS DATE) AS "Date", SUM(DATEDIFF(minute, Start, "End")) AS DateMinutesWorked FROM dbo.Timesheet GROUP BY CAST(Start AS DATE)'
+$dateData = Invoke-SqlQuery -Connection $connection -Query $dateQuery
 $dateData
 
 $excelParams = @{
@@ -203,6 +223,9 @@ $dateData | Export-Excel @excelParams @dateDataParams -Show
 
 Import-Excel -Path $excelParams.Path -StartColumn 1 -StartRow 20 -EndColumn 2 -DataOnly
 Import-Excel -Path $excelParams.Path -StartColumn 5 -StartRow 20 -EndColumn 6 -AsDate Date
+
+
+
 
 
 # Key takeaways:
