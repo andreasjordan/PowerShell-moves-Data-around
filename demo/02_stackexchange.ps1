@@ -25,6 +25,9 @@ $row.GetType()    # XmlElement
 $row.Id.GetType() # String
 
 
+
+
+
 ################################
 # Importing files to databases #
 ################################
@@ -34,9 +37,14 @@ $row.Id.GetType() # String
 # Collect 1000 lines
 # Send them to the database with a BULK INSERT
 # Let the .NET part handle the type conversion
-Import-SqlTable -Path ../data/stackexchange/Users.xml -Connection $stackexchange.SqlConnection -Table dbo.Users -TruncateTable -BatchSize 100
-Import-OraTable -Path ../data/stackexchange/Users.xml -Connection $stackexchange.OraConnection -Table Users -TruncateTable -BatchSize 100
-Import-PgTable -Path ../data/stackexchange/Users.xml -Connection $stackexchange.PgConnection -Table Users -TruncateTable -BatchSize 100
+$importTableParams = @{
+    Path          = '../data/stackexchange/Users.xml'
+    TruncateTable = $true
+    BatchSize     = 100
+}
+Import-SqlTable -Connection $stackexchange.SqlConnection -Table dbo.Users @importTableParams
+Import-OraTable -Connection $stackexchange.OraConnection -Table Users @importTableParams
+Import-PgTable -Connection $stackexchange.PgConnection -Table Users @importTableParams
 
 Get-PSFMessage | Where-Object Message -like Finished*Milliseconds | Select-Object -Last 3
 
@@ -44,13 +52,24 @@ Get-PSFMessage | Where-Object Message -like Finished*Milliseconds | Select-Objec
 $badgesData = Get-Content -Path ../data/stackexchange/Badges.xml
 ([xml]$badgesData[2]).row  # Only badges are created on "Date" instead of "CreationDate". But all tables use "CreationDate", so we need the mapping.
 
-Import-SqlTable -Path ../data/stackexchange/Badges.xml -Connection $stackexchange.SqlConnection -Table dbo.Badges -TruncateTable -BatchSize 100 -ColumnMap @{ CreationDate = "Date" }
-Import-OraTable -Path ../data/stackexchange/Badges.xml -Connection $stackexchange.OraConnection -Table Badges -TruncateTable -BatchSize 100 -ColumnMap @{ CreationDate = "Date" }
-Import-PgTable -Path ../data/stackexchange/Badges.xml -Connection $stackexchange.PgConnection -Table Badges -TruncateTable -BatchSize 100 -ColumnMap @{ CreationDate = "Date" }
+$importTableParams = @{
+    Path          = '../data/stackexchange/Badges.xml'
+    TruncateTable = $true
+    BatchSize     = 100
+    ColumnMap     = @{
+        CreationDate = "Date"
+    }
+}
+Import-SqlTable -Connection $stackexchange.SqlConnection -Table dbo.Badges @importTableParams
+Import-OraTable -Connection $stackexchange.OraConnection -Table Badges @importTableParams
+Import-PgTable -Connection $stackexchange.PgConnection -Table Badges @importTableParams
 
 Get-PSFMessage | Where-Object Message -like Finished*Milliseconds | Select-Object -Last 3
 
 # Just for information: There are also Export-*Table commands that can export data from tables to files with a json formated line per row.
+
+
+
 
 
 ####################################
@@ -60,11 +79,25 @@ Get-PSFMessage | Where-Object Message -like Finished*Milliseconds | Select-Objec
 
 # Now let's start streaming. We will move the data from one database to another database. But we start with SQL Server only.
 
-$sourceConnection = Connect-SqlInstance -Instance $stackexchange.SqlInstance -Credential $stackexchange.SqlCredential -Database $stackexchange.SqlDatabase
-$targetConnection = Connect-SqlInstance -Instance $stackexchange.SqlInstance -Credential $stackexchange.SqlCredential -Database $stackexchange.SqlDatabase
+$connectParams = @{
+    Instance   = $stackexchange.SqlInstance
+    Credential = $stackexchange.SqlCredential
+    Database   = $stackexchange.SqlDatabase
+}
+$sourceConnection = Connect-SqlInstance @connectParams
+$targetConnection = Connect-SqlInstance @connectParams
 $usersRowCount = Invoke-SqlQuery -Connection $sourceConnection -Query 'SELECT COUNT(*) FROM dbo.Users' -As SingleValue
 $dataReader = Get-SqlDataReader -Connection $sourceConnection -Table dbo.Users 
-Write-SqlTable -Connection $targetConnection -Table dbo.Import_Users -DataReader $dataReader -DataReaderRowCount $usersRowCount -TruncateTable -BatchSize 100
+$writeParams = @{
+    Connection         = $targetConnection
+    Table              = 'dbo.Import_Users'
+    DataReader         = $dataReader
+    DataReaderRowCount = $usersRowCount
+    TruncateTable      = $true
+    BatchSize          = 100
+}
+Write-SqlTable @writeParams
+
 
 
 # But we can also stream from one database system to another database system.
@@ -84,9 +117,12 @@ Write-PgTable -Connection $targetConnection -Table Import_Users -DataReader $dat
 Get-PSFMessage | Where-Object Message -like Finished*Milliseconds | Select-Object -Last 3
 
 
-#####################################
-# Importing data to NoSQL databases #
-#####################################
+
+
+
+############################################
+# Bonus: Importing data to NoSQL databases #
+############################################
 
 
 # PowerShell loves data as arrays of PSCustomObjects. So let's convert the XML data.
@@ -119,11 +155,14 @@ $usersObjects = foreach ($line in $usersData) {
 # Now we can upload the objects to a MongoDB collection.
 Write-MdbCollection -Connection $stackexchange.MdbConnection -Collection Users -Data $usersObjects
 
-# To prove the upload, letzt get some users from Canada.
+# To prove the upload, let's get some users from Canada.
 Read-MdbCollection -Connection $stackexchange.MdbConnection -Collection Users -Filter @{ Location = 'Canada' } -First 5 -Project @{ CreationDate = 1 ; DisplayName = 1 ; Location = 1}
 
 # Or get all objects and fill a grid view.
 Read-MdbCollection -Connection $stackexchange.MdbConnection -Collection Users | Out-GridView
+
+
+
 
 
 ##################################
@@ -139,12 +178,32 @@ $usersData = Get-MioFile -Connection $stackexchange.MioConnection -Key Users.xml
 $usersData.Count
 
 
-# Key takeaways:
-# * Files with a suitable format can be streamed to database tables.
-# * .NET can take care of type conversions.
-# * Streaming from one database to another database (system) is no problem.
-# * Data can also be uploaded to and retrieved from NoSQL databases.
+
+
+
+<####################################################################################################
+
+Key takeaways:
+
+* Files with a suitable format can be streamed to database tables.
+* .NET can take care of type conversions.
+* Streaming from one database to another database (system) is no problem.
+* Data can also be uploaded to and retrieved from NoSQL databases.
+
+####################################################################################################>
+
+
+
 
 
 # Cleanup:
 Remove-MdbCollection -Connection $stackexchange.MdbConnection -Collection Users
+Invoke-SqlQuery -Connection $stackexchange.SqlConnection -Query 'TRUNCATE TABLE dbo.Users'
+Invoke-OraQuery -Connection $stackexchange.OraConnection -Query 'TRUNCATE TABLE Users'
+Invoke-PgQuery -Connection $stackexchange.PgConnection -Query 'TRUNCATE TABLE Users'
+Invoke-SqlQuery -Connection $stackexchange.SqlConnection -Query 'TRUNCATE TABLE dbo.Badges'
+Invoke-OraQuery -Connection $stackexchange.OraConnection -Query 'TRUNCATE TABLE Badges'
+Invoke-PgQuery -Connection $stackexchange.PgConnection -Query 'TRUNCATE TABLE Badges'
+Invoke-SqlQuery -Connection $stackexchange.SqlConnection -Query 'TRUNCATE TABLE dbo.Import_Users'
+Invoke-OraQuery -Connection $stackexchange.OraConnection -Query 'TRUNCATE TABLE Import_Users'
+Invoke-PgQuery -Connection $stackexchange.PgConnection -Query 'TRUNCATE TABLE Import_Users'
