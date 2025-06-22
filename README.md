@@ -56,6 +56,8 @@ I have recorded a [Video](https://youtu.be/UnTFhbC3JVE) of the demo.
 
 This scenario needs PowerShell 7.
 
+I have recorded a [Video](https://youtu.be/EK1a7WthRqA) of the demo.
+
 
 ### Geodata
 
