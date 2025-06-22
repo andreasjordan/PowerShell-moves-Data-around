@@ -228,12 +228,19 @@ Import-Excel -Path $excelParams.Path -StartColumn 5 -StartRow 20 -EndColumn 6 -A
 
 
 
-# Key takeaways:
-# * Excel is good at storing data including datatypes, better than CSV files.
-# * Inside of PowerShell data should be stored in arrays of PSCustomObjects.
-# * Inserts can use BULK INSERT with some databases like SQL Server and Oracle.
-# * If you need individual inserts, use bind parameters.
-# * PowerShell 5.1 can still be used.
+<####################################################################################################
+
+Key takeaways:
+
+* Excel is good at storing data including datatypes, better than CSV files.
+* Inside of PowerShell data should be stored in arrays of PSCustomObjects.
+* Inserts can use BULK INSERT with some databases like SQL Server and Oracle.
+* If you need individual inserts, use bind parameters.
+* PowerShell 5.1 can still be used.
+
+####################################################################################################>
+
+
 
 
 # Cleanup:
