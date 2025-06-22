@@ -47,8 +47,22 @@ while ($true) {
     }
 }
 
+Write-PSFMessage -Level Host -Message 'Removing data from previous run'
+Invoke-PgQuery -Connection $dbConfig.PgConnection -Query "TRUNCATE TABLE order_event"
+Invoke-PgQuery -Connection $dbConfig.PgConnection -Query "TRUNCATE TABLE order_detail"
+Invoke-PgQuery -Connection $dbConfig.PgConnection -Query "TRUNCATE TABLE order_header"
+Invoke-PgQuery -Connection $dbConfig.PgConnection -Query "TRUNCATE TABLE customer"
+Remove-MdbCollection -Connection $dbConfig.MdbConnection -Collection Orders
+foreach ($file in Get-MioFileList -Connection $dbConfig.MioConnection) {
+    Remove-MioFile -Connection $dbConfig.MioConnection -Key $file.Key
+}
+
+
+Write-PSFMessage -Level Host -Message 'Reading photo data'
 $photos = Invoke-PgQuery -Connection $dbConfig.PgConnection -Query "SELECT id, name, price FROM photo"
 
+
+Write-PSFMessage -Level Host -Message 'Setting up state objects'
 $newCustomer = @{
     DelaySec = 60
     NextRun  = Get-Date
