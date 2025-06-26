@@ -65,8 +65,9 @@ I have recorded a [Video](https://youtu.be/EK1a7WthRqA) of the demo.
 - Setup: GPX files will be downloaded from michael-mueller-verlag.de/de/reisefuehrer/deutschland/berlin-city/gps-daten/
 - Setup: JSON file will be downloaded from datahub.io/core/geo-countries
 - Data from GPX files will be imported into SQL Server database
-
-MORE DEMO CODE WILL BE PUBLISHED LATER...
+- Geodata will be transfered from SQL Server to PostgreSQL and Oracle
+- Data from JSON file will be imported into Oracle and PostgreSQL database
+- Data from the german "Mauttabelle" will be imported into Oracle and PostgreSQL database
 
 This scenario needs PowerShell 7.
 
@@ -75,8 +76,12 @@ This scenario needs PowerShell 7.
 
 - Setup: The PhotoService application is running inside of a container and is constantly creating data
 - Binary data with jpeg images is imported to PostgreSQL
-
-MORE DEMO CODE WILL BE PUBLISHED LATER...
+- Binary data with jpeg images is transfered from PostgreSQL to SQL Server
+- Application data is transfered from PostgreSQL to SQL Server
+- Only new data is transfered
+- Updated data is transfered
+- Transactions are used to ensure data integrity
+- Event data is used to update tables in SQL Server
 
 This scenario needs PowerShell 7.
 
