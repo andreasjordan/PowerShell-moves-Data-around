@@ -119,6 +119,52 @@ Get-PSFMessage | Where-Object Message -like Finished*Milliseconds | Select-Objec
 
 
 
+###############################################
+# Bonus: Streaming data to Azure SQL Database #
+###############################################
+
+
+# How to setup the Azure SQL Database will be published later...
+$resourceGroupName = $env:AzureResourceGroupName
+$serverName = $env:AzureServerName
+
+$homeIP = (Invoke-WebRequest -Uri "http://ipinfo.io/json" -UseBasicParsing | ConvertFrom-Json).ip
+$null = Set-AzSqlServerFirewallRule -ResourceGroupName $resourceGroupName -ServerName $serverName -Name AllowHome -StartIpAddress $homeIP -EndIpAddress $homeIP
+$targetConnection = Connect-SqlInstance -Instance "$serverName.database.windows.net" -Credential $stackexchange.SqlCredential -Database $stackexchange.SqlDatabase
+
+
+# Streaming from a file
+#######################
+
+$importTableParams = @{
+    Connection    = $targetConnection
+    Path          = '../data/stackexchange/Users.xml'
+    Table         = 'dbo.Users'
+    TruncateTable = $true
+    BatchSize     = 100
+}
+Import-SqlTable @importTableParams
+
+
+# Streaming from a database
+###########################
+
+$sourceConnection = Connect-SqlInstance -Instance $stackexchange.SqlInstance -Credential $stackexchange.SqlCredential -Database $stackexchange.SqlDatabase
+$usersRowCount = Invoke-SqlQuery -Connection $sourceConnection -Query 'SELECT COUNT(*) FROM dbo.Users' -As SingleValue
+$dataReader = Get-SqlDataReader -Connection $sourceConnection -Table dbo.Users 
+$writeParams = @{
+    Connection         = $targetConnection
+    Table              = 'dbo.Import_Users'
+    DataReader         = $dataReader
+    DataReaderRowCount = $usersRowCount
+    TruncateTable      = $true
+    BatchSize          = 100
+}
+Write-SqlTable @writeParams
+
+
+
+
 
 ############################################
 # Bonus: Importing data to NoSQL databases #
