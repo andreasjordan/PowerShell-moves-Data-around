@@ -1,5 +1,7 @@
 $ErrorActionPreference = 'Stop'
 
+$hostname = '127.0.0.1'
+
 Import-Module PSFramework
 Import-Module ImportExcel 3>$null
 Write-PSFMessage -Level Host -Message 'Importing PowerShell functions'
@@ -81,7 +83,7 @@ foreach ($department in $departments) {
 # XML files will be uploaded to MinIO
 Write-PSFMessage -Level Host -Message 'Setting up variables and connections for StackExchange'
 $stackexchange = @{
-    MioInstance = 'localhost'
+    MioInstance = $hostname
     MioUser     = 'stackexchange'
     MioPassword = 'Passw0rd!'
     MioBucket   = 'stackexchange'
@@ -93,7 +95,11 @@ $stackexchange.MioConnection = Connect-MioInstance -Instance $stackexchange.MioI
 Write-PSFMessage -Level Host -Message 'Downloading StackExchange data'
 Push-Location -Path $stackexchange.DataPath
 Invoke-WebRequest -Uri "https://archive.org/download/stackexchange/$($stackexchange.Site).stackexchange.com.7z" -OutFile tmp.7z -UseBasicParsing
-$null = 7za e tmp.7z
+if ($IsLinux) {
+    $null = 7za e tmp.7z
+} else {
+    $null = C:\Progra~1\7-Zip\7z.exe e tmp.7z
+}
 Remove-Item -Path tmp.7z
 Pop-Location
 Write-PSFMessage -Level Host -Message 'Importing StackExchange data to MinIO'
@@ -113,7 +119,11 @@ $geodata = @{
 Push-Location -Path $geodata.DataPath
 Write-PSFMessage -Level Host -Message 'Downloading GPX data from berlin.de'
 Invoke-WebRequest -Uri https://www.berlin.de/sen/uvk/_assets/verkehr/verkehrsplanung/radverkehr/radrouten/radrouten_komplett.7z -OutFile tmp.7z -UseBasicParsing
-$null = 7za x tmp.7z
+if ($IsLinux) {
+    $null = 7za x tmp.7z
+} else {
+    $null = C:\Progra~1\7-Zip\7z.exe x tmp.7z
+}
 Start-Sleep -Seconds 2
 Remove-Item -Path tmp.7z
 Rename-Item -Path radrouten_komplett -NewName radrouten-berlin
