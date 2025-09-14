@@ -1,7 +1,7 @@
 $ErrorActionPreference = 'Stop'
 
 # Force IPv4 for localhost
-$localhost = '127.0.0.1'
+$hostname = '127.0.0.1'
 
 Import-Module PSFramework
 
@@ -17,22 +17,22 @@ Import-PgLibrary
 
 Write-PSFMessage -Level Host -Message 'Setting up variables and connections for StackExchange'
 $stackexchange = @{
-    SqlInstance = $localhost
+    SqlInstance = $hostname
     SqlLogin    = 'StackExchange'
     SqlPassword = 'Passw0rd!'
     SqlDatabase = 'StackExchange'
-    OraInstance = "$localhost/XEPDB1"
+    OraInstance = "$hostname/XEPDB1"
     OraUser     = 'stackexchange'
     OraPassword = 'Passw0rd!'
-    PgInstance  = $localhost
+    PgInstance  = $hostname
     PgUser      = 'stackexchange'
     PgPassword  = 'Passw0rd!'
     PgDatabase  = 'stackexchange'
-    MdbInstance = $localhost
+    MdbInstance = $hostname
     MdbUser     = 'stackexchange'
     MdbPassword = 'Passw0rd!'
     MdbDatabase = 'stackexchange'
-    MioInstance = $localhost
+    MioInstance = $hostname
     MioUser     = 'stackexchange'
     MioPassword = 'Passw0rd!'
     MioBucket   = 'stackexchange'

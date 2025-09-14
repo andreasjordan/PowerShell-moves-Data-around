@@ -1,7 +1,7 @@
 $ErrorActionPreference = 'Stop'
 
 # Force IPv4 for localhost
-$localhost = '127.0.0.1'
+$hostname = '127.0.0.1'
 
 Import-Module PSFramework
 
@@ -17,19 +17,19 @@ Import-PgLibrary
 
 Write-PSFMessage -Level Host -Message 'Setting up variables and connections for PhotoService'
 $photoservice = @{
-    SqlInstance = $localhost
+    SqlInstance = $hostname
     SqlLogin    = 'PhotoService'
     SqlPassword = 'Passw0rd!'
     SqlDatabase = 'PhotoService'
-    PgInstance  = $localhost
+    PgInstance  = $hostname
     PgUser      = 'photoservice'
     PgPassword  = 'Passw0rd!'
     PgDatabase  = 'photoservice'
-    MdbInstance = $localhost
+    MdbInstance = $hostname
     MdbUser     = 'photoservice'
     MdbPassword = 'Passw0rd!'
     MdbDatabase = 'photoservice'
-    MioInstance = $localhost
+    MioInstance = $hostname
     MioUser     = 'photoservice'
     MioPassword = 'Passw0rd!'
     MioBucket   = 'photoservice'

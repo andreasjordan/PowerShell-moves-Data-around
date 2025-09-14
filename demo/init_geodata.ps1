@@ -1,7 +1,7 @@
 $ErrorActionPreference = 'Stop'
 
 # Force IPv4 for localhost
-$localhost = '127.0.0.1'
+$hostname = '127.0.0.1'
 
 Import-Module PSFramework
 
@@ -17,15 +17,15 @@ Import-PgLibrary
 
 Write-PSFMessage -Level Host -Message 'Setting up variables and connections for Geodata'
 $geodata = @{
-    SqlInstance = $localhost
+    SqlInstance = $hostname
     SqlLogin    = 'Geodata'
     SqlPassword = 'Passw0rd!'
     SqlDatabase = 'Geodata'
-    PgInstance  = $localhost
+    PgInstance  = $hostname
     PgUser      = 'geodata'
     PgPassword  = 'Passw0rd!'
     PgDatabase  = 'geodata'
-    OraInstance = "$localhost/XEPDB1"
+    OraInstance = "$hostname/XEPDB1"
     OraUser     = 'geodata'
     OraPassword = 'Passw0rd!'
     Countries   = "../data/geodata/countries.geojson"
