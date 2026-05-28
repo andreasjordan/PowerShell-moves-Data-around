@@ -100,7 +100,7 @@ A video of the installation is available here: https://youtu.be/0NNNqPau4Go
 
 ### Install WSL2
 
-I use the default image Ubuntu by just executing `wsl --install` in an elevated cmd or powershell on a current Windows 11 systems. To start from scratch you can remove the Ubuntu by running `wsl --unregister Ubuntu`. Start Ubuntu with `wsl` and follow the instructions to create the unix account. The name of the accout and the password don't matter.
+I use the image Ubuntu-24.04 by just executing `wsl --install -d Ubuntu-24.04` in an elevated cmd or powershell on a current Windows 11 systems. To start from scratch you can remove the Ubuntu by running `wsl --unregister Ubuntu-24.04`. Start Ubuntu with `wsl` and follow the instructions to create the unix account. The name of the account and the password don't matter.
 
 
 ### Clone or download the repository

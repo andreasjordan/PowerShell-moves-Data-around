@@ -118,6 +118,7 @@ $geodata = @{
 }
 Push-Location -Path $geodata.DataPath
 Write-PSFMessage -Level Host -Message 'Downloading GPX data from berlin.de'
+$null = New-Item -Path radrouten-berlin -ItemType Directory | Push-Location
 Invoke-WebRequest -Uri https://www.berlin.de/sen/uvk/_assets/verkehr/verkehrsplanung/radverkehr/radrouten/radrouten_komplett.7z -OutFile tmp.7z -UseBasicParsing
 if ($IsLinux) {
     $null = 7za x tmp.7z
@@ -126,7 +127,7 @@ if ($IsLinux) {
 }
 Start-Sleep -Seconds 2
 Remove-Item -Path tmp.7z
-Rename-Item -Path radrouten_komplett -NewName radrouten-berlin
+Pop-Location
 Write-PSFMessage -Level Host -Message 'Downloading GPX data from michael-mueller-verlag.de'
 Invoke-WebRequest -Uri https://mmv.me/52630/00.gpx -OutFile michael-mueller-verlag-berlin.gpx -UseBasicParsing
 Write-PSFMessage -Level Host -Message 'Downloading GeoJSON data from datahub.io'
