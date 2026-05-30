@@ -84,9 +84,9 @@ Remove-Item -Path test.jpg
 
 # What data do we have?
 
-Invoke-PgQuery -Query 'SELECT * FROM customer' | Select-Object -Last 5 | Format-Table
-Invoke-PgQuery -Query 'SELECT * FROM order_header' | Select-Object -Last 5 | Format-Table
-Invoke-PgQuery -Query 'SELECT * FROM order_detail' | Select-Object -Last 5 | Format-Table
+Invoke-PgQuery -Query 'SELECT * FROM customer ORDER BY id' | Select-Object -Last 5 | Format-Table
+Invoke-PgQuery -Query 'SELECT * FROM order_header ORDER BY id' | Select-Object -Last 5 | Format-Table
+Invoke-PgQuery -Query 'SELECT * FROM order_detail ORDER BY order_id' | Select-Object -Last 5 | Format-Table
 
 
 # Create the tables

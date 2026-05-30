@@ -1,5 +1,5 @@
 ﻿break
-# This script works with PowerShell 5.1
+# This script works with both PowerShell 5.1 and PowerShell 7.5 or later
 
 # cd ./demo ; function prompt { "PS $(if ($NestedPromptLevel -ge 1) { '>>' })> " } ; cls
 
@@ -151,7 +151,7 @@ Invoke-SqlQuery -Connection $connection -Query 'SELECT * FROM dbo.Timesheet'
 . .\Import-XlsTimesheet.ps1
 $excelData = Import-XlsTimesheet -Path ..\data\timesheets\Department*.xlsx
 $excelData | Format-Table
-$excelData | Out-GridView  # Does not work with PowerShell 7.5 as we can not use the filter
+$excelData | Out-GridView
 
 Write-SqlTable -Connection $connection -Table dbo.Timesheet -Data $excelData -TruncateTable
 
