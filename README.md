@@ -89,23 +89,23 @@ This scenario needs PowerShell 7.
 
 ## Infrastructure
 
-The repository is designed for and tested on a Windows 11 system with 32 GB of RAM. The WSL2 is configured with docker to run the databases inside of containers.
+The repository is designed for and tested on a Windows 11 system with 32 GB of RAM. WSL2 is configured with Docker to run the databases inside containers.
 
-The initial PowerShell code needs to be run inside the WSL2 to setup the sample data.
+The initial PowerShell code must be run inside WSL2 to set up the sample data.
 
-The demo PowerShell code can run both inside the WSL2 or on the Windows 11 system. But for all demos to work, you need at least PowerShell 7.5.
+The demo PowerShell code can be executed either inside WSL2 or on the Windows 11 system. However, to run all demos, PowerShell 7.5 or later is required.
 
 A video of the installation is available here: https://youtu.be/0NNNqPau4Go
 
 
 ### Install WSL2
 
-I use the image Ubuntu-24.04 by just executing `wsl --install -d Ubuntu-24.04` in an elevated cmd or powershell on a current Windows 11 systems. To start from scratch you can remove the Ubuntu by running `wsl --unregister Ubuntu-24.04`. Start Ubuntu with `wsl` and follow the instructions to create the unix account. The name of the account and the password don't matter.
+I use the Ubuntu 24.04 image by running `wsl --install -d Ubuntu-24.04` in an elevated Command Prompt or PowerShell on a current Windows 11 system. To start from scratch, you can remove Ubuntu by running `wsl --unregister Ubuntu-24.04`. At the end of the installation, Ubuntu starts automatically, and you are prompted to create a Unix user account. The username and password do not matter.
 
 
 ### Clone or download the repository
 
-Open a non-elevated powershell.exe and go to a folder of your choice, I will use "C:\tmp" in this guide:
+Open a non-elevated PowerShell and navigate to a folder of your choice. In this guide, I will use `C:\tmp`.
 
 ```
 if (-not (Test-Path -Path C:\tmp)) {
@@ -133,19 +133,11 @@ Get-ChildItem -Path $PWD\PowerShell-moves-Data-around -Filter *.ps1 -Recurse | U
 
 ### Start the installation
 
-To run all the setup steps just execute "01_setup.ps1" in a non-elevated powershell.exe:
+To run all setup steps, simply execute `01_setup.ps1` in a non-elevated PowerShell.
 
-```
-.\PowerShell-moves-Data-around\01_setup.ps1
-```
-
-At the end, the script enters the WSL2 to keep all docker containers running. If you exit, it will shutdown WSL2 with all containers.
+At the end, the script enters WSL2 to keep all Docker containers running. If you exit, WSL2 will shut down along with all containers.
 
 
 ### Restart the docker containers
 
-To restart the containers use "99_start.ps1":
-
-```
-.\PowerShell-moves-Data-around\99_start.ps1
-```
+To restart the containers, simply execute `start_containers.ps1` in a non-elevated PowerShell.

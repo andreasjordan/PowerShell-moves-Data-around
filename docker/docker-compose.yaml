@@ -40,7 +40,7 @@ services:
       - ./oracle-geodata.sql:/opt/oracle/scripts/startup/geodata.sql:ro
 
   postgres:
-    # To find latest PostGIS images, see https://hub.docker.com/r/postgis/postgis/tags
+    # To find latest PostGIS images, see https://hub.docker.com/r/postgis/postgis
     image: postgis/postgis:18-3.6
     ports:
       - 5432:5432
@@ -54,7 +54,7 @@ services:
       - ./postgres-photoservice.sql:/docker-entrypoint-initdb.d/photoservice.sql:ro
 
   pgadmin:
-    # To find latest pgAdmin images, see https://hub.docker.com/r/dpage/pgadmin4/tags
+    # To find latest pgAdmin images, see https://hub.docker.com/r/dpage/pgadmin4
     image: dpage/pgadmin4:9.15.0
     ports:
       - 5050:80
@@ -70,7 +70,7 @@ services:
       - ./pgadmin-pgpass:/pgadmin4/pgpass:ro
 
   mongo:
-    # To find latest MongoDB images, see https://hub.docker.com/_/mongo/tags
+    # To find latest MongoDB images, see https://hub.docker.com/_/mongo
     image: mongo:7.0.34
     ports:
       - 27017:27017
