@@ -1,0 +1,122 @@
+[
+  {
+    "Title": "ERP System Upgrade",
+    "Priority": "High",
+    "Manager": "Alice Johnson",
+    "Status": "In Progress",
+    "Color": "Yellow",
+    "ProgressPercent": 65,
+    "Milestone": "Integration Testing",
+    "MilestoneDate": "2026-06-15"
+  },
+  {
+    "Title": "Cloud Migration",
+    "Priority": "High",
+    "Manager": "Carol White",
+    "Status": "At Risk",
+    "Color": "Red",
+    "ProgressPercent": 45,
+    "Milestone": "Data Migration",
+    "MilestoneDate": "Late july 2026"
+  },
+  {
+    "Title": "Mobile App Launch",
+    "Priority": "High",
+    "Manager": "David Brown",
+    "Status": "We're making good progress, but everyone will be going on summer vacation soon. That's why careful planning is very important.",
+    "Color": "Yellow",
+    "ProgressPercent": 80,
+    "Milestone": "Final Testing",
+    "MilestoneDate": "2026-06-10"
+  },
+  {
+    "Title": "Data Warehouse Setup",
+    "Priority": "High",
+    "Manager": "Grace Lee",
+    "Status": "Delayed",
+    "Color": "DarkRed",
+    "ProgressPercent": -12,
+    "Milestone": "ETL Development",
+    "MilestoneDate": "2026-07-15"
+  },
+  {
+    "Title": "",
+    "Priority": null,
+    "Manager": null,
+    "Status": null,
+    "Color": null,
+    "ProgressPercent": null,
+    "Milestone": null,
+    "MilestoneDate": null
+  },
+  {
+    "Title": "Website Redesign",
+    "Priority": "Medium",
+    "Manager": "Bob Smith",
+    "Status": "Planning",
+    "Color": "Green",
+    "ProgressPercent": 20,
+    "Milestone": "Design Approval",
+    "MilestoneDate": "2026-06-20"
+  },
+  {
+    "Title": "CRM Implementation",
+    "Priority": "Medium",
+    "Manager": "Frank Miller",
+    "Status": "In Progress",
+    "Color": "Yellow",
+    "ProgressPercent": 55,
+    "Milestone": "User Training",
+    "MilestoneDate": "2026-07-05"
+  },
+  {
+    "Title": "",
+    "Priority": null,
+    "Manager": null,
+    "Status": null,
+    "Color": null,
+    "ProgressPercent": null,
+    "Milestone": null,
+    "MilestoneDate": null
+  },
+  {
+    "Title": "Security Audit",
+    "Priority": "Low",
+    "Manager": "Emily Davis",
+    "Status": "Completed",
+    "Color": "Green",
+    "ProgressPercent": 100,
+    "Milestone": "Audit Report",
+    "MilestoneDate": "2026-05-25"
+  },
+  {
+    "Title": null,
+    "Priority": null,
+    "Manager": null,
+    "Status": null,
+    "Color": null,
+    "ProgressPercent": null,
+    "Milestone": null,
+    "MilestoneDate": null
+  },
+  {
+    "Title": "NEW PROJECTS:",
+    "Priority": null,
+    "Manager": null,
+    "Status": null,
+    "Color": null,
+    "ProgressPercent": null,
+    "Milestone": null,
+    "MilestoneDate": null
+  },
+  {
+    "Title": "HR System Upgrade",
+    "Priority": "Low",
+    "Manager": "Henry Clark",
+    "Status": "On Hold",
+    "Color": "Yellow",
+    "ProgressPercent": "unknown",
+    "Milestone": null,
+    "MilestoneDate": null
+  }
+]

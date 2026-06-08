@@ -20,6 +20,7 @@ services:
       - ./sqlserver-stackexchange.sql:/init-scripts/stackexchange.sql:ro
       - ./sqlserver-geodata.sql:/init-scripts/geodata.sql:ro
       - ./sqlserver-photoservice.sql:/init-scripts/photoservice.sql:ro
+      - ./sqlserver-projectstatus.sql:/init-scripts/projectstatus.sql:ro
     command: [ "bash", "/init-scripts/init.sh" ]
 
   oracle:

@@ -18,6 +18,7 @@ $timesheets = @{
     DataPath   = 'data/timesheets'
     SampleFile = 'sample.json'
 }
+Remove-item -Path "$($timesheets.DataPath)/*.xlsx" -ErrorAction Ignore
 <# Code to generate sample data from Excel files
 $files = Get-ChildItem -Path ./data/timesheets/*.xlsx
 $data = foreach ($file in $files) {
@@ -90,6 +91,7 @@ $stackexchange = @{
     Site        = 'dba.meta'
     DataPath    = 'data/stackexchange'
 }
+Remove-item -Path "$($stackexchange.DataPath)/*.xml" -ErrorAction Ignore
 $stackexchange.MioCredential = [PSCredential]::new($stackexchange.MioUser, ($stackexchange.MioPassword | ConvertTo-SecureString -AsPlainText -Force))
 $stackexchange.MioConnection = Connect-MioInstance -Instance $stackexchange.MioInstance -Credential $stackexchange.MioCredential -Bucket $stackexchange.MioBucket
 Write-PSFMessage -Level Host -Message 'Downloading StackExchange data'
@@ -116,6 +118,9 @@ foreach ($file in $files) {
 $geodata = @{
     DataPath    = 'data/geodata'
 }
+Remove-Item -Path "$($geodata.DataPath)/*.gpx" -ErrorAction Ignore
+Remove-Item -Path "$($geodata.DataPath)/*.geojson" -ErrorAction Ignore
+Remove-Item -Path "$($geodata.DataPath)/radrouten-berlin" -Recurse -ErrorAction Ignore
 Push-Location -Path $geodata.DataPath
 Write-PSFMessage -Level Host -Message 'Downloading GPX data from berlin.de'
 $null = New-Item -Path radrouten-berlin -ItemType Directory | Push-Location
@@ -136,5 +141,31 @@ $geoJSON = Invoke-RestMethod -Method Get -Uri https://datahub.io/core/geo-countr
 # $geoJSON.features = $geoJSON.features | Where-Object { $_.properties.'ISO3166-1-Alpha-3' -in 'AUT','BEL','BGR','HRV','CYP','CZE','DNK','EST','FIN','DEU','GRC','HUN','IRL','ITA','LVA','LTU','LUX','MLT','NLD','POL','PRT','ROU','SVK','SVN','ESP','SWE' -or $_.properties.name -in 'France'}
 $geoJSON | ConvertTo-Json -Depth 9 -Compress | Set-Content -Path countries.geojson
 Pop-Location
+
+
+# ProjectStatus
+# Excel files will be generated from sample.json
+Write-PSFMessage -Level Host -Message 'Setting up Excel files for ProjectStatus'
+$projectstatus = @{
+    DataPath   = 'data/projectstatus'
+    SampleFile = 'sample.json'
+}
+Remove-Item -Path "$($projectstatus.DataPath)/*.xlsx" -ErrorAction Ignore
+$data = Get-Content -Path "$($projectstatus.DataPath)/$($projectstatus.SampleFile)" | ConvertFrom-Json
+$excel = $data | Export-Excel -Path "$($projectstatus.DataPath)/ProjectStatus.xlsx" -WorksheetName ProjectStatus -StartRow 3 -BoldTopRow -PassThru
+$worksheet = $excel.Workbook.Worksheets['ProjectStatus']
+$worksheet.Column(1).Width = 25
+$worksheet.Column(2).Width = 10
+$worksheet.Column(3).Width = 15
+$worksheet.Column(4).Width = 25
+$worksheet.Column(5).Width = 10
+$worksheet.Column(6).Width = 15
+$worksheet.Column(6).Style.HorizontalAlignment = 'left'
+$worksheet.Column(7).Width = 25
+$worksheet.Column(8).Width = 15
+$worksheet.Cells['A1'].Value = 'Please fill out this form weekly and send it to project management office. Thanks!'
+$worksheet.Cells['A1'].Style.Font.Size = 14
+$worksheet.Cells['A1'].Style.Font.Bold = $true
+Close-ExcelPackage $excel
 
 Write-PSFMessage -Level Host -Message 'Finished'

@@ -1,0 +1,4 @@
+CREATE LOGIN ProjectStatus WITH PASSWORD = 'Passw0rd!', CHECK_POLICY = OFF;
+CREATE DATABASE ProjectStatus;
+ALTER AUTHORIZATION ON DATABASE::ProjectStatus TO ProjectStatus;
+GO

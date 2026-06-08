@@ -18,6 +18,7 @@ echo "Connected to SQL Server."
 /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "Passw0rd!" -C -i /init-scripts/stackexchange.sql
 /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "Passw0rd!" -C -i /init-scripts/geodata.sql
 /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "Passw0rd!" -C -i /init-scripts/photoservice.sql
+/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "Passw0rd!" -C -i /init-scripts/projectstatus.sql
 
 echo "SQL Server configuration complete."
 
