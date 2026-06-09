@@ -4,3 +4,4 @@ data/stackexchange/*.xml
 data/geodata/*.gpx
 data/geodata/*/*.gpx
 data/geodata/*.geojson
+data/projectstatus/*.xlsx
