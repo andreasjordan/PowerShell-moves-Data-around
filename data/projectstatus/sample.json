@@ -23,7 +23,7 @@
     "Title": "Mobile App Launch",
     "Priority": "High",
     "Manager": "David Brown",
-    "Status": "We're making good progress, but everyone will be going on summer vacation soon. That's why careful planning is very important.",
+    "Status": "We're making good progress, but everyone will be going on summer vacation soon.",
     "Color": "Yellow",
     "ProgressPercent": 80,
     "Milestone": "Final Testing",
@@ -35,7 +35,7 @@
     "Manager": "Grace Lee",
     "Status": "Delayed",
     "Color": "DarkRed",
-    "ProgressPercent": -12,
+    "ProgressPercent": 1,
     "Milestone": "ETL Development",
     "MilestoneDate": "2026-07-15"
   },
