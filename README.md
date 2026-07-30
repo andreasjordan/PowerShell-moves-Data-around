@@ -33,6 +33,30 @@ The code is both tested on Windows 11 and an Ubuntu WSL2.
 
 
 
+## Repository layout
+
+| Path | Content |
+| --- | --- |
+| `01_setup.ps1` … `06_test_connections.ps1` | The setup steps. `01_setup.ps1` runs all of them. |
+| `start_containers.ps1` | Restarts the containers after a reboot. |
+| `data/` | One directory per scenario for the sample data. The generated and downloaded files are not part of the repository. |
+| `demo/` | The demo scripts, plus an `init_<scenario>.ps1` per scenario that opens the needed connections. |
+| `docker/` | The compose file, the database init scripts and the PhotoService application. |
+| `lib/` | The functions that do the actual work. See [lib/README.md](lib/README.md) for an overview. |
+
+
+
+## Running the demos
+
+The demo scripts are **not meant to be executed as a whole**. Each one starts with a `break` statement
+to prevent that. They are meant to be opened in an editor like Visual Studio Code and then executed
+section by section, so that you can look at the data and the results at every step.
+
+The `demo/init_<scenario>.ps1` scripts are different: they only set up the connections for a scenario
+and can be run as they are.
+
+
+
 ## Demo scenarios
 
 ### Timesheets
@@ -86,10 +110,32 @@ This scenario needs PowerShell 7.
 This scenario needs PowerShell 7.
 
 
+### ProjectStatus
+
+- Setup: An Excel file will be created from sample data
+- Data from the Excel file will be imported into SQL Server database
+- A bulk import fails on the first invalid row and imports nothing at all
+- Data will be imported row by row with a parameterized INSERT statement
+- Exceptions are used to identify the rows that could not be imported
+- The failed rows will be exported to a new Excel file together with the error message
+- Some of the failures will be corrected automatically and imported on a second try
+
+This scenario can be run with both PowerShell 5.1 and PowerShell 7.
+
+
 
 ## Infrastructure
 
 The repository is designed for and tested on a Windows 11 system with 32 GB of RAM. WSL2 is configured with Docker to run the databases inside containers.
+
+These containers are used: SQL Server 2025, Oracle Database Express Edition 21c, PostgreSQL with PostGIS, pgAdmin, MongoDB, MinIO, and one running the PhotoService application. The exact image versions are pinned in `docker/docker-compose.yaml`.
+
+Two of the containers have a web interface:
+
+- MinIO: http://127.0.0.1:9001/login
+- pgAdmin: http://127.0.0.1:5050/browser/
+
+All accounts use the same password, which is configured in `docker/.env`. As this is a demo environment that only runs locally, the password is part of the repository.
 
 The initial PowerShell code must be run inside WSL2 to set up the sample data.
 
