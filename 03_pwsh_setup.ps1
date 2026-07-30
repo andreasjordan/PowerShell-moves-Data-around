@@ -6,7 +6,7 @@ if ((Get-PackageProvider).Name -notcontains 'NuGet') {
 if ((Get-PSRepository -Name PSGallery -ErrorAction SilentlyContinue).InstallationPolicy -ne 'Trusted') {
     Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
 }
-$installedModules = (Get-Module -ListAvailable).Name 
+$installedModules = (Get-Module -ListAvailable).Name
 foreach ($module in 'PSFramework Microsoft.PowerShell.ConsoleGuiTools ImportExcel Mdbc'.Split(' ')) {
     if ($installedModules -notcontains $module) {
         # Only with "-Scope AllUsers", modules are installed to "/usr/local/share/powershell/Modules"

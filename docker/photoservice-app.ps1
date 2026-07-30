@@ -213,7 +213,7 @@ while ($true) {
 
     if ((Get-Date) -gt $newPayment.NextRun) {
         Add-LoggingEvent -Component Payment -Message 'Starting NewPayment'
-        
+
         $payment = [PSCustomObject]@{
             OrderId     = Invoke-PgQuery -Connection $dbConfig.PgConnection -Query 'SELECT id FROM order_header WHERE payment_uuid IS NULL ORDER BY RANDOM() LIMIT 1' -As SingleValue
             PaymentUuid = New-Guid
@@ -229,7 +229,7 @@ while ($true) {
 
     if ((Get-Date) -gt $newShipment.NextRun) {
         Add-LoggingEvent -Component Shipment -Message 'Starting NewShipment'
-        
+
         $shipment = [PSCustomObject]@{
             OrderId      = Invoke-PgQuery -Connection $dbConfig.PgConnection -Query 'SELECT id FROM order_header WHERE payment_uuid IS NOT NULL AND shipment_uuid IS NULL ORDER BY RANDOM() LIMIT 1' -As SingleValue
             ShipmentUuid = New-Guid

@@ -87,7 +87,7 @@ $connectParams = @{
 $sourceConnection = Connect-SqlInstance @connectParams
 $targetConnection = Connect-SqlInstance @connectParams
 $usersRowCount = Invoke-SqlQuery -Connection $sourceConnection -Query 'SELECT COUNT(*) FROM dbo.Users' -As SingleValue
-$dataReader = Get-SqlDataReader -Connection $sourceConnection -Table dbo.Users 
+$dataReader = Get-SqlDataReader -Connection $sourceConnection -Table dbo.Users
 $writeParams = @{
     Connection         = $targetConnection
     Table              = 'dbo.Import_Users'
@@ -105,13 +105,13 @@ Write-SqlTable @writeParams
 $sourceConnection = Connect-PgInstance -Instance $stackexchange.PgInstance -Credential $stackexchange.PgCredential -Database $stackexchange.PgDatabase
 $targetConnection = Connect-SqlInstance -Instance $stackexchange.SqlInstance -Credential $stackexchange.SqlCredential -Database $stackexchange.SqlDatabase
 $usersRowCount = Invoke-PgQuery -Connection $sourceConnection -Query 'SELECT COUNT(*) FROM Users' -As SingleValue
-$dataReader = Get-PgDataReader -Connection $sourceConnection -Table Users 
+$dataReader = Get-PgDataReader -Connection $sourceConnection -Table Users
 Write-SqlTable -Connection $targetConnection -Table dbo.Import_Users -DataReader $dataReader -DataReaderRowCount $usersRowCount -TruncateTable -BatchSize 100
 
 $sourceConnection = Connect-OraInstance -Instance $stackexchange.OraInstance -Credential $stackexchange.OraCredential
 $targetConnection = Connect-PgInstance -Instance $stackexchange.PgInstance -Credential $stackexchange.PgCredential -Database $stackexchange.PgDatabase
 $usersRowCount = Invoke-OraQuery -Connection $sourceConnection -Query 'SELECT COUNT(*) FROM Users' -As SingleValue
-$dataReader = Get-OraDataReader -Connection $sourceConnection -Table Users 
+$dataReader = Get-OraDataReader -Connection $sourceConnection -Table Users
 Write-PgTable -Connection $targetConnection -Table Import_Users -DataReader $dataReader -DataReaderRowCount $usersRowCount -TruncateTable -BatchSize 100
 
 Get-PSFMessage | Where-Object Message -like Finished*Milliseconds | Select-Object -Last 3
@@ -151,7 +151,7 @@ Import-SqlTable @importTableParams
 
 $sourceConnection = Connect-SqlInstance -Instance $stackexchange.SqlInstance -Credential $stackexchange.SqlCredential -Database $stackexchange.SqlDatabase
 $usersRowCount = Invoke-SqlQuery -Connection $sourceConnection -Query 'SELECT COUNT(*) FROM dbo.Users' -As SingleValue
-$dataReader = Get-SqlDataReader -Connection $sourceConnection -Table dbo.Users 
+$dataReader = Get-SqlDataReader -Connection $sourceConnection -Table dbo.Users
 $writeParams = @{
     Connection         = $targetConnection
     Table              = 'dbo.Import_Users'

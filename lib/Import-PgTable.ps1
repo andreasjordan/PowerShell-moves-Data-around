@@ -131,8 +131,8 @@ function Import-PgTable {
                 if ($rowCount % $BatchSize -eq 0) {
                     $null = $dataAdapter.Update($dataTable)
                     $dataTable.Clear()
-        
-                    $progressParam = @{ 
+
+                    $progressParam = @{
                         Id               = 1
                         Activity         = 'Inserting rows into {0}' -f $Table
                         Status           = '{0:n0} of {1:n0} bytes transfered' -f $fileStream.Position, $fileStream.Length

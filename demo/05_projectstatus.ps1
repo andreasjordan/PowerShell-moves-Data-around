@@ -44,13 +44,13 @@ CREATE TABLE dbo.ProjectStatus (
   ProgressPercent  INT,
   Milestone        VARCHAR(100),
   MilestoneDate    DATETIME2,
-  CONSTRAINT ProjectStatus_PK 
+  CONSTRAINT ProjectStatus_PK
   PRIMARY KEY (Title),
-  CONSTRAINT ProjectStatus_Priority 
+  CONSTRAINT ProjectStatus_Priority
   CHECK (Priority IN ('Low', 'Medium', 'High')),
-  CONSTRAINT ProjectStatus_Color 
+  CONSTRAINT ProjectStatus_Color
   CHECK (Color IN ('Green', 'Yellow', 'Red')),
-  CONSTRAINT ProjectStatus_ProgressPercent 
+  CONSTRAINT ProjectStatus_ProgressPercent
   CHECK (ProgressPercent >= 0 AND ProgressPercent <= 100)
 )
 '@
@@ -157,7 +157,7 @@ foreach ($row in $excelData) {
 }
 Invoke-SqlQuery -Connection $connection -Query 'SELECT * FROM dbo.ProjectStatus' | Format-Table
 
-# We can identify the failed rows, but we still don't have a way to export them for further analysis. 
+# We can identify the failed rows, but we still don't have a way to export them for further analysis.
 
 
 
@@ -244,5 +244,5 @@ Key takeaways:
 
 
 # Cleanup:
-Invoke-SqlQuery -Connection $connection -Query 'DROP TABLE dbo.ProjectStatus' 
+Invoke-SqlQuery -Connection $connection -Query 'DROP TABLE dbo.ProjectStatus'
 Remove-Item -Path ..\data\projectstatus\ProjectStatus_Failures.xlsx -ErrorAction Ignore

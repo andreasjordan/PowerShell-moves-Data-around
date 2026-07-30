@@ -29,7 +29,7 @@ function Write-MdbCollection {
     }
 
     $addDataParams = @{
-        Collection = $mdbCollection 
+        Collection = $mdbCollection
         Many       = $true
     }
     if ($PSBoundParameters.ContainsKey('Convert')) {

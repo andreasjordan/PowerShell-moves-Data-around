@@ -84,7 +84,7 @@ function Write-PgTable {
                     $value = $row.$($column.ColumnName)
                     if ($null -ne $value) {
                         $newRow[$column.ColumnName] = $value
-                    } 
+                    }
                 }
                 $dataTable.Rows.Add($newRow)
                 $completed++
@@ -92,7 +92,7 @@ function Write-PgTable {
                 if ($completed % $BatchSize -eq 0) {
                     $null = $dataAdapter.Update($dataTable)
                     $dataTable.Clear()
-        
+
                     $progressParam = @{
                         Id       = 1
                         Activity = "Inserting rows into $Table"
@@ -132,11 +132,11 @@ function Write-PgTable {
                 }
                 $dataTable.Rows.Add($newRow)
                 $completed++
-    
+
                 if ($completed % $BatchSize -eq 0) {
                     $null = $dataAdapter.Update($dataTable)
                     $dataTable.Clear()
-        
+
                     $progressParam = @{
                         Id       = 1
                         Activity = "Inserting rows into $Table"

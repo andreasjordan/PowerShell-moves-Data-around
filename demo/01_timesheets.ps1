@@ -54,7 +54,7 @@ CREATE TABLE dbo.Timesheet (
   "End"      DATETIME2,
   Project    VARCHAR(100),
   Task       VARCHAR(1000),
-  CONSTRAINT Timesheet_PK 
+  CONSTRAINT Timesheet_PK
   PRIMARY KEY (
     Department,
     Person,
@@ -100,7 +100,7 @@ $task = $row.task
 
 # We start with a bad idea: Create the insert statement by concatenating strings
 $insertQuery = "INSERT INTO dbo.Timesheet VALUES ('$department', '$person', '$start', '$end', '$project', '$task')"
-$insertQuery 
+$insertQuery
 
 # Does it work?
 Invoke-SqlQuery -Connection $connection -Query $insertQuery
@@ -199,7 +199,7 @@ $dateDataParams = @{
     StartColumn          = 5
     Style                = @{
         Range        = 'Date'
-        NumberFormat = 'DD.MM.YYYY' 
+        NumberFormat = 'DD.MM.YYYY'
     }
     ExcelChartDefinition = @{
         ChartType      = 'ColumnClustered'

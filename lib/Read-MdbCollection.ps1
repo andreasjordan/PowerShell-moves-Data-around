@@ -45,7 +45,7 @@ function Read-MdbCollection {
     if ($PSBoundParameters.ContainsKey('Sort')) {
         $params.Sort = $Sort
     }
-    
+
     try {
         Get-MdbcData @params
     } catch {

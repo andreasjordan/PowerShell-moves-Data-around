@@ -17,13 +17,13 @@ function Get-SqlTableInformation {
             Write-PSFMessage -Level Verbose -Message "Getting list of tables in current schema"
             $Table = Invoke-SqlQuery -Query 'SELECT name FROM sys.tables' @queryParams | Sort-Object
         }
-    
+
         foreach ($tbl in $Table) {
             Write-PSFMessage -Level Verbose -Message "Getting information about $tbl"
             # Query might be wrong, please test and give feedback
             $pagesQuery = @'
 SELECT SUM(u.used_pages)
-  FROM sys.tables AS t 
+  FROM sys.tables AS t
      , sys.partitions AS p
      , sys.allocation_units AS u
  WHERE t.object_id = p.object_id

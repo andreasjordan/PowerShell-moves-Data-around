@@ -56,7 +56,7 @@ CREATE TABLE dbo.photo
 , name   VARCHAR(50)
 , price  NUMERIC(5, 2)
 , image  VARBINARY(MAX)
-, CONSTRAINT photo_pk 
+, CONSTRAINT photo_pk
   PRIMARY KEY (id)
 )
 '@
@@ -91,9 +91,9 @@ Invoke-PgQuery -Query 'SELECT * FROM order_detail ORDER BY order_id' | Select-Ob
 
 # Create the tables
 
-Invoke-SqlQuery -Query 'CREATE TABLE dbo.customer (id INT, firstname VARCHAR(50), surname VARCHAR(50), city VARCHAR(50), email VARCHAR(200), transfered_at DATETIME2, CONSTRAINT customer_pk PRIMARY KEY (id))' 
-Invoke-SqlQuery -Query 'CREATE TABLE dbo.order_header (id INT, customer_id INT, created_at DATETIME2, updated_at DATETIME2, payment_uuid UNIQUEIDENTIFIER, shipment_uuid UNIQUEIDENTIFIER, CONSTRAINT order_header_pk PRIMARY KEY (id))' 
-Invoke-SqlQuery -Query 'CREATE TABLE dbo.order_detail (order_id INT, photo_id INT, quantity INT, price NUMERIC(7, 2), CONSTRAINT order_detail_pk PRIMARY KEY (order_id, photo_id))' 
+Invoke-SqlQuery -Query 'CREATE TABLE dbo.customer (id INT, firstname VARCHAR(50), surname VARCHAR(50), city VARCHAR(50), email VARCHAR(200), transfered_at DATETIME2, CONSTRAINT customer_pk PRIMARY KEY (id))'
+Invoke-SqlQuery -Query 'CREATE TABLE dbo.order_header (id INT, customer_id INT, created_at DATETIME2, updated_at DATETIME2, payment_uuid UNIQUEIDENTIFIER, shipment_uuid UNIQUEIDENTIFIER, CONSTRAINT order_header_pk PRIMARY KEY (id))'
+Invoke-SqlQuery -Query 'CREATE TABLE dbo.order_detail (order_id INT, photo_id INT, quantity INT, price NUMERIC(7, 2), CONSTRAINT order_detail_pk PRIMARY KEY (order_id, photo_id))'
 
 
 
@@ -135,13 +135,13 @@ Write-SqlTable -Table dbo.order_detail -DataReader $dataReader
 
 # Some queries for the SQL Server Management Studio:
 # SELECT * FROM dbo.order_header ORDER BY id DESC
-# SELECT * FROM dbo.order_detail ORDER BY order_id DESC 
+# SELECT * FROM dbo.order_detail ORDER BY order_id DESC
 
 
 # Transfer new orders, only order_detail for transfered order_header
 
-Invoke-SqlQuery -Query 'TRUNCATE TABLE dbo.order_header' 
-Invoke-SqlQuery -Query 'TRUNCATE TABLE dbo.order_detail' 
+Invoke-SqlQuery -Query 'TRUNCATE TABLE dbo.order_header'
+Invoke-SqlQuery -Query 'TRUNCATE TABLE dbo.order_detail'
 
 $targetId = Invoke-SqlQuery -Query 'SELECT ISNULL(MAX(id), 0) FROM dbo.order_header' -As SingleValue
 $sourceId = Invoke-PgQuery -Query 'SELECT COALESCE(MAX(id), 0) FROM order_header' -As SingleValue
@@ -262,9 +262,9 @@ $sourceTransaction.Dispose()
 #########################################
 
 
-Invoke-SqlQuery -Query 'TRUNCATE TABLE dbo.customer' 
-Invoke-SqlQuery -Query 'TRUNCATE TABLE dbo.order_header' 
-Invoke-SqlQuery -Query 'TRUNCATE TABLE dbo.order_detail' 
+Invoke-SqlQuery -Query 'TRUNCATE TABLE dbo.customer'
+Invoke-SqlQuery -Query 'TRUNCATE TABLE dbo.order_header'
+Invoke-SqlQuery -Query 'TRUNCATE TABLE dbo.order_detail'
 
 
 $fileList = Get-MioFileList
@@ -318,7 +318,7 @@ Invoke-SqlQuery -Query "SELECT * FROM cdc.dbo_customer_CT" | Select-Object -Last
 #############################################
 
 
-Invoke-SqlQuery -Query 'CREATE TABLE logging (id INT, timestamp DATETIME2, hostname VARCHAR(50), appname VARCHAR(50), component VARCHAR(50), level VARCHAR(50), message VARCHAR(500), details NVARCHAR(MAX), CONSTRAINT logging_pk PRIMARY KEY (id))' 
+Invoke-SqlQuery -Query 'CREATE TABLE logging (id INT, timestamp DATETIME2, hostname VARCHAR(50), appname VARCHAR(50), component VARCHAR(50), level VARCHAR(50), message VARCHAR(500), details NVARCHAR(MAX), CONSTRAINT logging_pk PRIMARY KEY (id))'
 
 $fileList = Get-MioFileList
 foreach ($file in $fileList) {
@@ -410,7 +410,7 @@ Key takeaways:
 
 
 # Cleanup:
-Invoke-SqlQuery -Query 'DROP TABLE dbo.customer' 
-Invoke-SqlQuery -Query 'DROP TABLE dbo.order_header' 
-Invoke-SqlQuery -Query 'DROP TABLE dbo.order_detail' 
+Invoke-SqlQuery -Query 'DROP TABLE dbo.customer'
+Invoke-SqlQuery -Query 'DROP TABLE dbo.order_header'
+Invoke-SqlQuery -Query 'DROP TABLE dbo.order_detail'
 Invoke-SqlQuery -Connection $azureConnection -Query 'DROP TABLE dbo.Orders'

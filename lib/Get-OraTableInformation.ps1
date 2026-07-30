@@ -17,7 +17,7 @@ function Get-OraTableInformation {
             Write-PSFMessage -Level Verbose -Message "Getting list of tables in current schema"
             $Table = Invoke-OraQuery -Query 'SELECT table_name FROM user_tables' @queryParams | Sort-Object
         }
-    
+
         foreach ($tbl in $Table) {
             Write-PSFMessage -Level Verbose -Message "Getting information about $tbl"
             $blocks = Invoke-OraQuery -Query 'SELECT NVL(SUM(blocks), 0) FROM user_segments WHERE segment_name = :segment_name' -ParameterValues @{ segment_name = $tbl } @queryParams

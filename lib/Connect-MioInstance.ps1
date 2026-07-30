@@ -38,14 +38,14 @@ function Connect-MioInstance {
         $bytesToHash = [Text.Encoding]::ASCII.GetBytes("$Method`n`n$ContentType`n$Date`n/$bucket/$Key")
         $bytesHashed = [System.Security.Cryptography.HMACSHA1]::new($bytesSecret).ComputeHash($bytesToHash)
         $stringHashed = [Convert]::ToBase64String($bytesHashed)
-        
+
         "AWS " + $accessKey + ":" + $stringHashed
     }
 
     Add-Member -InputObject $connectionObject -MemberType ScriptMethod -Name GetFileListParams -Value {
         $method      = 'GET'
         $date        = [datetime]::Now.ToUniversalTime().ToString('R')
-    
+
         $invokeParams = @{
             Uri     = "$($this.BaseUrl)/$($this.Bucket)/"
             Method  = $method
@@ -71,7 +71,7 @@ function Connect-MioInstance {
 
         $method      = 'GET'
         $date        = [datetime]::Now.ToUniversalTime().ToString('R')
-    
+
         $invokeParams = @{
             Uri     = "$($this.BaseUrl)/$($this.Bucket)/$Key"
             Method  = $method
@@ -88,7 +88,7 @@ function Connect-MioInstance {
         } else {
             $invokeParams.Headers.'Content-Type' = $ContentType
         }
-    
+
         $invokeParams
     }
 
@@ -101,7 +101,7 @@ function Connect-MioInstance {
 
         $method      = 'PUT'
         $date        = [datetime]::Now.ToUniversalTime().ToString('R')
-    
+
         $invokeParams = @{
             Uri     = "$($this.BaseUrl)/$($this.Bucket)/$Key"
             Method  = $method
@@ -118,7 +118,7 @@ function Connect-MioInstance {
         } else {
             $invokeParams.Headers.'Content-Type' = $ContentType
         }
-    
+
         $invokeParams
     }
 
@@ -129,7 +129,7 @@ function Connect-MioInstance {
 
         $method      = 'DELETE'
         $date        = [datetime]::Now.ToUniversalTime().ToString('R')
-    
+
         $invokeParams = @{
             Uri     = "$($this.BaseUrl)/$($this.Bucket)/$Key"
             Method  = $method
@@ -142,7 +142,7 @@ function Connect-MioInstance {
         if ($PSVersionTable.PSVersion.Major -gt 5) {
             $invokeParams.SkipCertificateCheck = $true
         }
-    
+
         $invokeParams
     }
 

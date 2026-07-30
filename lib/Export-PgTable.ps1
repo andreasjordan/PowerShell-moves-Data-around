@@ -31,7 +31,7 @@ function Export-PgTable {
     }
 
     Write-PSFMessage -Level Verbose -Message "Exporting rows"
-    $progressParam = @{ 
+    $progressParam = @{
         Id               = 1
         Activity         = 'Exporting rows from {0}' -f $Table
         Status           = '0 of {0:n0} rows exported' -f $numRows

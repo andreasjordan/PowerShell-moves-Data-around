@@ -47,7 +47,7 @@ function Write-OraTable {
                     $value = $row.$($column.ColumnName)
                     if ($null -ne $value) {
                         $newRow[$column.ColumnName] = $value
-                    } 
+                    }
                 }
                 $dataTable.Rows.Add($newRow)
             }

@@ -27,11 +27,11 @@ function Connect-OraInstance {
         $csb['DBA Privilege'] = 'SYSDBA'
     }
     $connection = [Oracle.ManagedDataAccess.Client.OracleConnection]::new($csb.ConnectionString)
-    
+
     try {
         Write-PSFMessage -Level Verbose -Message "Opening connection"
         $connection.Open()
-        
+
         Write-PSFMessage -Level Verbose -Message "Returning connection object"
         $connection
     } catch {

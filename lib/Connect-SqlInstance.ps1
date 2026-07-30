@@ -32,7 +32,7 @@ function Connect-SqlInstance {
     try {
         Write-PSFMessage -Level Verbose -Message "Opening connection"
         $connection.Open()
-        
+
         Write-PSFMessage -Level Verbose -Message "Returning connection object"
         $connection
     } catch {

@@ -25,8 +25,8 @@ services:
 
   oracle:
     # To find latest Oracle images, see https://container-registry.oracle.com/ords/ocr/ba/database/express
-    # From the website: 
-    # The Oracle XE Database server Docker image contains Oracle Database Express Edition Release 21c (21.3.0.0) running on Oracle Linux 7. 
+    # From the website:
+    # The Oracle XE Database server Docker image contains Oracle Database Express Edition Release 21c (21.3.0.0) running on Oracle Linux 7.
     # This image contains a default database in a multitenant configuration with one pluggable database.
     image: container-registry.oracle.com/database/express:21.3.0-xe
     ports:
@@ -37,7 +37,7 @@ services:
     mem_limit: 3gb
     volumes:
       - oracle:/opt/oracle
-      - ./oracle-stackexchange.sql:/opt/oracle/scripts/startup/stackexchange.sql:ro 
+      - ./oracle-stackexchange.sql:/opt/oracle/scripts/startup/stackexchange.sql:ro
       - ./oracle-geodata.sql:/opt/oracle/scripts/startup/geodata.sql:ro
 
   postgres:

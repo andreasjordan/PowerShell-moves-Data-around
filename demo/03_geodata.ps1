@@ -38,10 +38,10 @@ $data | Format-Table
 # $data = Import-GpxFile -Path C:\Users\AndreasJordan\Dropbox\ViewRanger_letzter_Export.gpx
 # $data | ogv
 
-$createQuery = 'CREATE TABLE dbo.berlin_tours (type VARCHAR(10), name VARCHAR(250), geometry GEOMETRY)' 
+$createQuery = 'CREATE TABLE dbo.berlin_tours (type VARCHAR(10), name VARCHAR(250), geometry GEOMETRY)'
 Invoke-SqlQuery -Connection $geodata.SqlConnection -Query $createQuery
-# Invoke-SqlQuery -Connection $geodata.SqlConnection -Query 'TRUNCATE TABLE dbo.berlin_tours' 
-# Invoke-SqlQuery -Connection $geodata.SqlConnection -Query 'DROP TABLE dbo.berlin_tours' 
+# Invoke-SqlQuery -Connection $geodata.SqlConnection -Query 'TRUNCATE TABLE dbo.berlin_tours'
+# Invoke-SqlQuery -Connection $geodata.SqlConnection -Query 'DROP TABLE dbo.berlin_tours'
 
 $insertQuery = 'INSERT INTO dbo.berlin_tours VALUES (@type, @name, geometry::STGeomFromText(@wkt, 4326).MakeValid())'
 foreach ($row in $data) {
@@ -75,9 +75,9 @@ foreach ($row in $data) {
 ######################################
 
 
-# Can we select the data? 
+# Can we select the data?
 # Not directly ...
-$sqlExport = Invoke-SqlQuery -Connection $geodata.SqlConnection -Query 'SELECT * FROM dbo.berlin_tours'  
+$sqlExport = Invoke-SqlQuery -Connection $geodata.SqlConnection -Query 'SELECT * FROM dbo.berlin_tours'
 # DataReader.GetFieldType(2) returned null.
 
 # But we can convert the data back to WKT
@@ -88,8 +88,8 @@ $sqlExport | Format-Table
 # Let's create a table on PostgreSQL and fill it with the data
 $createQuery = 'CREATE TABLE berlin_tours (type VARCHAR(10), name VARCHAR(250), geometry GEOMETRY)'
 Invoke-PgQuery -Connection $geodata.PgConnection -Query $createQuery
-# Invoke-PgQuery -Connection $geodata.PgConnection -Query 'TRUNCATE TABLE berlin_tours' 
-# Invoke-PgQuery -Connection $geodata.PgConnection -Query 'DROP TABLE berlin_tours' 
+# Invoke-PgQuery -Connection $geodata.PgConnection -Query 'TRUNCATE TABLE berlin_tours'
+# Invoke-PgQuery -Connection $geodata.PgConnection -Query 'DROP TABLE berlin_tours'
 
 $insertQuery = 'INSERT INTO berlin_tours VALUES (:type, :name, ST_MakeValid(ST_GeomFromText(:wkt, 4326)))'
 foreach ($row in $sqlExport) {
@@ -115,11 +115,11 @@ foreach ($row in $sqlExport) {
 
 
 # Transfer the data to PostgreSQL with Write-PgTable
-Invoke-PgQuery -Connection $geodata.PgConnection -Query 'CREATE TABLE berlin_tours_import (type VARCHAR(10), name VARCHAR(250), wkt TEXT)' 
+Invoke-PgQuery -Connection $geodata.PgConnection -Query 'CREATE TABLE berlin_tours_import (type VARCHAR(10), name VARCHAR(250), wkt TEXT)'
 Write-PgTable -Connection $geodata.PgConnection -Table berlin_tours_import -Data $sqlExport
-Invoke-PgQuery -Connection $geodata.PgConnection -Query 'TRUNCATE TABLE berlin_tours' 
-Invoke-PgQuery -Connection $geodata.PgConnection -Query 'INSERT INTO berlin_tours SELECT type, name, ST_MakeValid(ST_GeomFromText(wkt, 4326)) FROM berlin_tours_import' 
-Invoke-PgQuery -Connection $geodata.PgConnection -Query 'DROP TABLE berlin_tours_import' 
+Invoke-PgQuery -Connection $geodata.PgConnection -Query 'TRUNCATE TABLE berlin_tours'
+Invoke-PgQuery -Connection $geodata.PgConnection -Query 'INSERT INTO berlin_tours SELECT type, name, ST_MakeValid(ST_GeomFromText(wkt, 4326)) FROM berlin_tours_import'
+Invoke-PgQuery -Connection $geodata.PgConnection -Query 'DROP TABLE berlin_tours_import'
 
 
 
@@ -152,10 +152,10 @@ foreach ($row in $sqlExport) {
     }
 }
 
-Invoke-OraQuery -Connection $geodata.OraConnection -Query 'CREATE TABLE berlin_tours_import (type VARCHAR2(10), name VARCHAR2(250), wkt CLOB)' 
+Invoke-OraQuery -Connection $geodata.OraConnection -Query 'CREATE TABLE berlin_tours_import (type VARCHAR2(10), name VARCHAR2(250), wkt CLOB)'
 Write-OraTable -Connection $geodata.OraConnection -Table berlin_tours_import -Data $sqlExport
-Invoke-OraQuery -Connection $geodata.OraConnection -Query 'INSERT INTO berlin_tours SELECT type, name, SDO_UTIL.RECTIFY_GEOMETRY(SDO_GEOMETRY(wkt, 4326), 0.01) FROM berlin_tours_import' 
-Invoke-OraQuery -Connection $geodata.OraConnection -Query 'DROP TABLE berlin_tours_import' 
+Invoke-OraQuery -Connection $geodata.OraConnection -Query 'INSERT INTO berlin_tours SELECT type, name, SDO_UTIL.RECTIFY_GEOMETRY(SDO_GEOMETRY(wkt, 4326), 0.01) FROM berlin_tours_import'
+Invoke-OraQuery -Connection $geodata.OraConnection -Query 'DROP TABLE berlin_tours_import'
 
 
 
@@ -187,7 +187,7 @@ foreach ($feature in $geoJSON.features) {
         ParameterValues = @{
             name     = $feature.properties.name
             iso      = $feature.properties.'ISO3166-1-Alpha-3'
-            geometry = $feature.geometry | ConvertTo-Json -Depth 4 -Compress 
+            geometry = $feature.geometry | ConvertTo-Json -Depth 4 -Compress
         }
     }
     try {
@@ -199,7 +199,7 @@ foreach ($feature in $geoJSON.features) {
 }
 
 # Let's create the table and import the data to Oracle
-Invoke-OraQuery -Connection $geodata.OraConnection -Query 'CREATE TABLE countries (name VARCHAR(50), iso CHAR(3), geometry SDO_GEOMETRY)' 
+Invoke-OraQuery -Connection $geodata.OraConnection -Query 'CREATE TABLE countries (name VARCHAR(50), iso CHAR(3), geometry SDO_GEOMETRY)'
 foreach ($feature in $geoJSON.features) {
     $invokeParams = @{
         Connection      = $geodata.OraConnection
@@ -264,16 +264,16 @@ $mautDaten = foreach ($abschnitt in $mauttabelle) {
 Invoke-PgQuery -Connection $geodata.PgConnection -Query 'CREATE TABLE mauttabelle (abschnitt INT, von VARCHAR(100), nach VARCHAR(100), laenge NUMERIC(3,1), strasse VARCHAR(10), bundesland VARCHAR(10), breite_von NUMERIC(6,4), laenge_von NUMERIC(6,4), breite_nach NUMERIC(6,4), laenge_nach NUMERIC(6,4), geometry GEOMETRY, CONSTRAINT mauttabelle_pk PRIMARY KEY (abschnitt))'
 Invoke-PgQuery -Connection $geodata.PgConnection -Query 'CREATE TABLE mauttabelle_import (abschnitt INT, von VARCHAR(100), nach VARCHAR(100), laenge NUMERIC(3,1), strasse VARCHAR(10), bundesland VARCHAR(10), breite_von NUMERIC(6,4), laenge_von NUMERIC(6,4), breite_nach NUMERIC(6,4), laenge_nach NUMERIC(6,4))'
 Write-PgTable -Connection $geodata.PgConnection -Table mauttabelle_import -Data $mautDaten
-Invoke-PgQuery -Connection $geodata.PgConnection -Query 'TRUNCATE TABLE mauttabelle' 
-Invoke-PgQuery -Connection $geodata.PgConnection -Query 'INSERT INTO mauttabelle SELECT abschnitt, von, nach, laenge, strasse, bundesland, breite_von, laenge_von, breite_nach, laenge_nach, ST_MakeLine(ST_Point(laenge_von, breite_von, 4326), ST_Point(laenge_nach, breite_nach, 4326)) FROM mauttabelle_import' 
-Invoke-PgQuery -Connection $geodata.PgConnection -Query 'DROP TABLE mauttabelle_import' 
+Invoke-PgQuery -Connection $geodata.PgConnection -Query 'TRUNCATE TABLE mauttabelle'
+Invoke-PgQuery -Connection $geodata.PgConnection -Query 'INSERT INTO mauttabelle SELECT abschnitt, von, nach, laenge, strasse, bundesland, breite_von, laenge_von, breite_nach, laenge_nach, ST_MakeLine(ST_Point(laenge_von, breite_von, 4326), ST_Point(laenge_nach, breite_nach, 4326)) FROM mauttabelle_import'
+Invoke-PgQuery -Connection $geodata.PgConnection -Query 'DROP TABLE mauttabelle_import'
 
 Invoke-OraQuery -Connection $geodata.OraConnection -Query 'CREATE TABLE mauttabelle (abschnitt INT, von VARCHAR2(100), nach VARCHAR2(100), laenge NUMERIC(3,1), strasse VARCHAR2(10), bundesland VARCHAR2(10), breite_von NUMERIC(6,4), laenge_von NUMERIC(6,4), breite_nach NUMERIC(6,4), laenge_nach NUMERIC(6,4), geometry SDO_GEOMETRY, CONSTRAINT mauttabelle_pk PRIMARY KEY (abschnitt))'
 Invoke-OraQuery -Connection $geodata.OraConnection -Query 'CREATE TABLE mauttabelle_import (abschnitt INT, von VARCHAR2(100), nach VARCHAR2(100), laenge NUMERIC(3,1), strasse VARCHAR2(10), bundesland VARCHAR2(10), breite_von NUMERIC(6,4), laenge_von NUMERIC(6,4), breite_nach NUMERIC(6,4), laenge_nach NUMERIC(6,4))'
 Write-OraTable -Connection $geodata.OraConnection -Table mauttabelle_import -Data $mautDaten
 Invoke-OraQuery -Connection $geodata.OraConnection -Query 'TRUNCATE TABLE mauttabelle'
 Invoke-OraQuery -Connection $geodata.OraConnection -Query "INSERT INTO mauttabelle SELECT abschnitt, von, nach, laenge, strasse, bundesland, breite_von, laenge_von, breite_nach, laenge_nach, SDO_GEOMETRY('LINESTRING (' || TO_CHAR(laenge_von, '90.0000') || ' ' || TO_CHAR(breite_von, '90.0000') || ', ' || TO_CHAR(laenge_nach, '90.0000') || ' ' || TO_CHAR(breite_nach, '90.0000') || ')', 4326) FROM mauttabelle_import"
-Invoke-OraQuery -Connection $geodata.OraConnection -Query 'DROP TABLE mauttabelle_import' 
+Invoke-OraQuery -Connection $geodata.OraConnection -Query 'DROP TABLE mauttabelle_import'
 
 
 
@@ -296,9 +296,9 @@ Key takeaways:
 
 # Cleanup:
 Invoke-SqlQuery -Connection $geodata.SqlConnection -Query 'DROP TABLE dbo.berlin_tours'
-Invoke-PgQuery -Connection $geodata.PgConnection -Query 'DROP TABLE berlin_tours' 
-Invoke-OraQuery -Connection $geodata.OraConnection -Query 'DROP TABLE berlin_tours' 
-Invoke-PgQuery -Connection $geodata.PgConnection -Query 'DROP TABLE countries' 
-Invoke-OraQuery -Connection $geodata.OraConnection -Query 'DROP TABLE countries' 
-Invoke-PgQuery -Connection $geodata.PgConnection -Query 'DROP TABLE mauttabelle' 
-Invoke-OraQuery -Connection $geodata.OraConnection -Query 'DROP TABLE mauttabelle' 
+Invoke-PgQuery -Connection $geodata.PgConnection -Query 'DROP TABLE berlin_tours'
+Invoke-OraQuery -Connection $geodata.OraConnection -Query 'DROP TABLE berlin_tours'
+Invoke-PgQuery -Connection $geodata.PgConnection -Query 'DROP TABLE countries'
+Invoke-OraQuery -Connection $geodata.OraConnection -Query 'DROP TABLE countries'
+Invoke-PgQuery -Connection $geodata.PgConnection -Query 'DROP TABLE mauttabelle'
+Invoke-OraQuery -Connection $geodata.OraConnection -Query 'DROP TABLE mauttabelle'
