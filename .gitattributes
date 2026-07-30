@@ -1,1 +1,14 @@
-*.sh text eol=lf
+# Every text file is stored and checked out with LF.
+#
+# The repository is already LF throughout. Git for Windows sets core.autocrlf=true
+# by default, which would check these files out as CRLF and silently rewrite them.
+# That is harmless for the PowerShell files, but not for the ones that are mounted
+# into the Linux containers: the *.sh scripts break outright, and docker/.env and
+# docker/pgadmin-pgpass would carry a stray carriage return into a password.
+#
+# Pinning eol=lf here wins over core.autocrlf, so every clone gets the same files.
+* text=auto eol=lf
+
+# Images are never converted. Git detects this on its own, but being explicit
+# means a future change to the line above cannot corrupt them.
+*.jpg binary
