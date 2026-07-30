@@ -1,3 +1,4 @@
+.claude/settings.local.json
 lib/*.dll
 data/timesheets/*.xlsx
 data/stackexchange/*.xml
