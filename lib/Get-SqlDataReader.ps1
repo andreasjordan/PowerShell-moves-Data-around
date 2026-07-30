@@ -62,6 +62,7 @@ function Get-SqlDataReader {
     } catch {
         Stop-PSFFunction -Message "Getting data reader failed: $($_.Exception.InnerException.Message)" -Target $Query -EnableException $EnableException
     } finally {
-        try { $command.Dispose() } catch { }
+        # The returned data reader stays usable, disposing the command only releases the command itself
+        try { $command.Dispose() } catch { Write-PSFMessage -Level Verbose -Message "Disposing the command failed: $($_.Exception.Message)" }
     }
 }

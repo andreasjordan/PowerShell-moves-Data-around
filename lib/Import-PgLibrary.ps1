@@ -38,6 +38,6 @@ function Import-PgLibrary {
             }
         }
     } catch {
-        Stop-PSFFunction -Message "Import failed: $($_.Exception.InnerException.Message)" -Target $Path -EnableException $EnableException
+        Stop-PSFFunction -Message "Import failed: $($_.Exception.Message)" -Target $Path -EnableException $EnableException
     }
 }

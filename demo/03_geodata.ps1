@@ -1,4 +1,4 @@
-break
+﻿break
 # This script needs PowerShell 7.5 or later
 
 # cd ./demo ; function prompt { "PS $(if ($NestedPromptLevel -ge 1) { '>>' })> " } ; cls

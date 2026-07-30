@@ -58,6 +58,8 @@ CREATE TABLE dbo.ProjectStatus (
 # To create the table, we need to connect to the database and execute the query
 
 # The magic is hidden in some functions that we need to import
+# They use PSFramework for logging and error handling, so we need that module as well
+Import-Module -Name PSFramework
 foreach ($file in (Get-ChildItem -Path ../lib/*-Sql*.ps1)) { . $file.FullName }
 
 # We need to store the password inside of a PSCredential object

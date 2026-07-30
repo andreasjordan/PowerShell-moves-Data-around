@@ -93,12 +93,17 @@ function Write-PgTable {
                     $null = $dataAdapter.Update($dataTable)
                     $dataTable.Clear()
         
-                    $progressParam = @{ 
-                        Id               = 1
-                        Activity         = "Inserting rows into $Table"
-                        Status           = "$completed of $rowCount rows transfered"
-                        PercentComplete  = $completed * 100 / $rowCount
-                        SecondsRemaining = $stopwatch.Elapsed.TotalSeconds * ($rowCount - $completed) / $completed
+                    $progressParam = @{
+                        Id       = 1
+                        Activity = "Inserting rows into $Table"
+                        Status   = "$completed of $rowCount rows transfered"
+                    }
+                    if ($completed -gt 0) {
+                        $progressParam.SecondsRemaining = $stopwatch.Elapsed.TotalSeconds * ($rowCount - $completed) / $completed
+                    }
+                    if ($rowCount -gt 0) {
+                        # The row count can be too low, so we have to make sure we stay inside of the allowed range
+                        $progressParam.PercentComplete = [Math]::Min(100, $completed * 100 / $rowCount)
                     }
                     if ($stopwatch.Elapsed.TotalSeconds -gt 1) {
                         $progressParam.CurrentOperation = "$([int]($completed / $stopwatch.Elapsed.TotalSeconds)) rows per second"
@@ -132,12 +137,17 @@ function Write-PgTable {
                     $null = $dataAdapter.Update($dataTable)
                     $dataTable.Clear()
         
-                    $progressParam = @{ 
-                        Id               = 1
-                        Activity         = "Inserting rows into $Table"
-                        Status           = "$completed of $rowCount rows transfered"
-                        PercentComplete  = $completed * 100 / $rowCount
-                        SecondsRemaining = $stopwatch.Elapsed.TotalSeconds * ($rowCount - $completed) / $completed
+                    $progressParam = @{
+                        Id       = 1
+                        Activity = "Inserting rows into $Table"
+                        Status   = "$completed of $rowCount rows transfered"
+                    }
+                    if ($completed -gt 0) {
+                        $progressParam.SecondsRemaining = $stopwatch.Elapsed.TotalSeconds * ($rowCount - $completed) / $completed
+                    }
+                    if ($rowCount -gt 0) {
+                        # The row count can be too low, so we have to make sure we stay inside of the allowed range
+                        $progressParam.PercentComplete = [Math]::Min(100, $completed * 100 / $rowCount)
                     }
                     if ($stopwatch.Elapsed.TotalSeconds -gt 1) {
                         $progressParam.CurrentOperation = "$([int]($completed / $stopwatch.Elapsed.TotalSeconds)) rows per second"

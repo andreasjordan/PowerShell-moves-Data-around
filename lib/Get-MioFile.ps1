@@ -14,7 +14,12 @@ function Get-MioFile {
 
     $invokeParams = $Connection.GetFileParams($ContentType, $Key, $OutFile)
     Write-PSFMessage -Level Verbose -Message $($invokeParams | ConvertTo-Json -Compress)
-    $null = Invoke-WebRequest @invokeParams -Verbose:$false
+    try {
+        $null = Invoke-WebRequest @invokeParams -Verbose:$false
+    } catch {
+        Stop-PSFFunction -Message "Getting file failed: $($_.Exception.Message)" -Target $Key -EnableException $EnableException
+        return
+    }
 
     if (-not $PSBoundParameters.ContainsKey('OutFile')) {
         Get-Content -Path $OutFile -Encoding UTF8

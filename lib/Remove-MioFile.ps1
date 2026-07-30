@@ -8,5 +8,10 @@ function Remove-MioFile {
 
     $invokeParams = $Connection.RemoveFileParams($Key)
     Write-PSFMessage -Level Verbose -Message $($invokeParams | ConvertTo-Json -Compress)
-    $null = Invoke-WebRequest @invokeParams -Verbose:$false
+    try {
+        $null = Invoke-WebRequest @invokeParams -Verbose:$false
+    } catch {
+        Stop-PSFFunction -Message "Removing file failed: $($_.Exception.Message)" -Target $Key -EnableException $EnableException
+        return
+    }
 }

@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 
 Import-Module PSFramework, Mdbc
 Write-PSFMessage -Level Host -Message 'Importing PowerShell functions'
@@ -8,6 +8,7 @@ Import-PgLibrary
 $PSDefaultParameterValues = @{
     "*-Pg*:EnableException"  = $true
     "*-Mdb*:EnableException" = $true
+    "*-Mio*:EnableException" = $true
 }
 
 Write-PSFMessage -Level Host -Message 'Reading sample data from files'

@@ -19,7 +19,8 @@ function Import-OraLibrary {
             try {
                 Add-Type -Path ($Path -match '\.dll$')
             } catch [System.Reflection.ReflectionTypeLoadException] {
-                # Can be ignored
+                # Not all types of the Oracle library can be loaded, but the ones we need can
+                Write-PSFMessage -Level Verbose -Message "Ignoring ReflectionTypeLoadException while loading the library"
             }
         } else {
             foreach ($lib in $library) {
@@ -37,11 +38,12 @@ function Import-OraLibrary {
                 try {
                     Add-Type -Path $libPath
                 } catch [System.Reflection.ReflectionTypeLoadException] {
-                    # Can be ignored
+                    # Not all types of the Oracle library can be loaded, but the ones we need can
+                    Write-PSFMessage -Level Verbose -Message "Ignoring ReflectionTypeLoadException while loading $libPath"
                 }
             }
         }
     } catch {
-        Stop-PSFFunction -Message "Import failed: $($_.Exception.InnerException.Message)" -Target $Path -EnableException $EnableException
+        Stop-PSFFunction -Message "Import failed: $($_.Exception.Message)" -Target $Path -EnableException $EnableException
     }
 }

@@ -36,6 +36,6 @@ function Connect-MdbInstance {
             Collection = $mdbCollection
         }
     } catch {
-        Stop-PSFFunction -Message "Connection failed: $($_.Exception.InnerException.Message)" -EnableException $EnableException
+        Stop-PSFFunction -Message "Connection failed: $($_.Exception.Message)" -Target $Instance -EnableException $EnableException
     }
 }

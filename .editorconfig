@@ -11,6 +11,11 @@ indent_size = 4
 [*.sh]
 end_of_line = lf
 
+# These scripts contain German umlauts, partly in property names. Without a BOM,
+# Windows PowerShell 5.1 decodes them wrongly and a property lookup silently returns $null.
+[{demo/01_timesheets.ps1,demo/03_geodata.ps1,docker/photoservice-app.ps1}]
+charset = utf-8-bom
+
 [*.{yaml,yml,json}]
 indent_size = 2
 

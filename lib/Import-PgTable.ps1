@@ -100,14 +100,14 @@ function Import-PgTable {
         while (-not $streamReader.EndOfStream) {
             $line = $streamReader.ReadLine()
             if ($null -eq $dataType) {
-                if ($line.Substring(0, 5) -eq '<?xml') {
+                if ($line -like '<?xml*') {
                     $dataType = 'xml'
-                } elseif ($line.Substring(0, 1) -eq '{') {
+                } elseif ($line -like '{*') {
                     $dataType = 'json'
                 }
             }
             $rowObject = $null
-            if ($dataType -eq 'xml' -and $line.Substring(0, 6) -eq '  <row') {
+            if ($dataType -eq 'xml' -and $line -like '  <row*') {
                 $rowObject = ([xml]$line).row
             } elseif ($dataType -eq 'json') {
                 $rowObject = $line | ConvertFrom-Json

@@ -53,7 +53,7 @@ function Invoke-PgQuery {
                 }
                 Add-Type -TypeDefinition $cSharp -ReferencedAssemblies $assemblies -ErrorAction Stop
             } catch {
-                if (-not $_.ToString() -like "*The type name 'DBNullScrubber' already exists*") {
+                if ($_.ToString() -notlike "*The type name 'DBNullScrubber' already exists*") {
                     Write-PSFMessage -Level Warning -Message "Could not load DBNullScrubber. Defaulting to DataRow output: $_."
                     $As = "Datarow"
                 }

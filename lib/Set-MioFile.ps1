@@ -16,7 +16,12 @@ function Set-MioFile {
 
     $invokeParams = $Connection.SetFileParams($ContentType, $Key, $InFile)
     Write-PSFMessage -Level Verbose -Message $($invokeParams | ConvertTo-Json -Compress)
-    $null = Invoke-WebRequest @invokeParams -Verbose:$false
+    try {
+        $null = Invoke-WebRequest @invokeParams -Verbose:$false
+    } catch {
+        Stop-PSFFunction -Message "Setting file failed: $($_.Exception.Message)" -Target $Key -EnableException $EnableException
+        return
+    }
 
     if (-not $PSBoundParameters.ContainsKey('InFile')) {
         Remove-Item -Path $InFile

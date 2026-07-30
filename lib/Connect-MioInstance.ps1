@@ -150,11 +150,12 @@ function Connect-MioInstance {
 
     try {
         Write-PSFMessage -Level Verbose -Message "Opening connection"
-        $null = Get-MioFileList -Connection $connectionObject
+        # We always need the exception here, so that we don't return a connection object that does not work
+        $null = Get-MioFileList -Connection $connectionObject -EnableException
 
         Write-PSFMessage -Level Verbose -Message "Returning connection object"
         $connectionObject
     } catch {
-        Stop-PSFFunction -Message "Connection failed: $($_.Exception.InnerException.Message)" -EnableException $EnableException
+        Stop-PSFFunction -Message "Connection failed: $($_.Exception.Message)" -Target $Instance -EnableException $EnableException
     }
 }
