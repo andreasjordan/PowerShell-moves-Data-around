@@ -1,5 +1,12 @@
 $ErrorActionPreference = 'Stop'
 
+# This script is run twice by 01_setup.ps1: once inside WSL2 and once on Windows. The two runs do
+# not prove the same thing - the one in WSL2 reaches the containers over the WSL2 loopback, while
+# the one on Windows goes through the port forwarding, which is the only path a demo ever takes.
+
+# Force IPv4 for localhost
+$hostname = '127.0.0.1'
+
 Import-Module PSFramework
 Write-PSFMessage -Level Host -Message 'Importing PowerShell functions'
 foreach ($file in (Get-ChildItem -Path $PSScriptRoot/lib/*-*.ps1)) { . $file.FullName }
@@ -16,7 +23,7 @@ $PSDefaultParameterValues = @{
 
 Write-PSFMessage -Level Host -Message 'Setting up variables and connections for Timesheets'
 $timesheets = @{
-    SqlInstance = 'localhost'
+    SqlInstance = $hostname
     SqlLogin    = 'TimeSheets'
     SqlPassword = 'Passw0rd!'
     SqlDatabase = 'TimeSheets'
@@ -27,22 +34,22 @@ $timesheets.SqlConnection = Connect-SqlInstance -Instance $timesheets.SqlInstanc
 
 Write-PSFMessage -Level Host -Message 'Setting up variables and connections for StackExchange'
 $stackexchange = @{
-    SqlInstance = 'localhost'
+    SqlInstance = $hostname
     SqlLogin    = 'StackExchange'
     SqlPassword = 'Passw0rd!'
     SqlDatabase = 'StackExchange'
-    OraInstance = 'localhost/XEPDB1'
+    OraInstance = "$hostname/XEPDB1"
     OraUser     = 'stackexchange'
     OraPassword = 'Passw0rd!'
-    PgInstance  = 'localhost'
+    PgInstance  = $hostname
     PgUser      = 'stackexchange'
     PgPassword  = 'Passw0rd!'
     PgDatabase  = 'stackexchange'
-    MdbInstance = 'localhost'
+    MdbInstance = $hostname
     MdbUser     = 'stackexchange'
     MdbPassword = 'Passw0rd!'
     MdbDatabase = 'stackexchange'
-    MioInstance = 'localhost'
+    MioInstance = $hostname
     MioUser     = 'stackexchange'
     MioPassword = 'Passw0rd!'
     MioBucket   = 'stackexchange'
@@ -61,15 +68,15 @@ $stackexchange.MioConnection = Connect-MioInstance -Instance $stackexchange.MioI
 
 Write-PSFMessage -Level Host -Message 'Setting up variables and connections for Geodata'
 $geodata = @{
-    SqlInstance = 'localhost'
+    SqlInstance = $hostname
     SqlLogin    = 'Geodata'
     SqlPassword = 'Passw0rd!'
     SqlDatabase = 'Geodata'
-    PgInstance  = 'localhost'
+    PgInstance  = $hostname
     PgUser      = 'geodata'
     PgPassword  = 'Passw0rd!'
     PgDatabase  = 'geodata'
-    OraInstance = 'localhost/XEPDB1'
+    OraInstance = "$hostname/XEPDB1"
     OraUser     = 'geodata'
     OraPassword = 'Passw0rd!'
 }
@@ -83,19 +90,19 @@ $geodata.OraConnection = Connect-OraInstance -Instance $geodata.OraInstance -Cre
 
 Write-PSFMessage -Level Host -Message 'Setting up variables and connections for PhotoService'
 $photoservice = @{
-    SqlInstance = 'localhost'
+    SqlInstance = $hostname
     SqlLogin    = 'PhotoService'
     SqlPassword = 'Passw0rd!'
     SqlDatabase = 'PhotoService'
-    PgInstance  = 'localhost'
+    PgInstance  = $hostname
     PgUser      = 'photoservice'
     PgPassword  = 'Passw0rd!'
     PgDatabase  = 'photoservice'
-    MdbInstance = 'localhost'
+    MdbInstance = $hostname
     MdbUser     = 'photoservice'
     MdbPassword = 'Passw0rd!'
     MdbDatabase = 'photoservice'
-    MioInstance = 'localhost'
+    MioInstance = $hostname
     MioUser     = 'photoservice'
     MioPassword = 'Passw0rd!'
     MioBucket   = 'photoservice'
@@ -108,6 +115,17 @@ $photoservice.MdbCredential = [PSCredential]::new($photoservice.MdbUser, ($photo
 $photoservice.MdbConnection = Connect-MdbInstance -Instance $photoservice.MdbInstance -Credential $photoservice.MdbCredential -Database $photoservice.MdbDatabase
 $photoservice.MioCredential = [PSCredential]::new($photoservice.MioUser, ($photoservice.MioPassword | ConvertTo-SecureString -AsPlainText -Force))
 $photoservice.MioConnection = Connect-MioInstance -Instance $photoservice.MioInstance -Credential $photoservice.MioCredential -Bucket $photoservice.MioBucket
+
+
+Write-PSFMessage -Level Host -Message 'Setting up variables and connections for ProjectStatus'
+$projectstatus = @{
+    SqlInstance = $hostname
+    SqlLogin    = 'ProjectStatus'
+    SqlPassword = 'Passw0rd!'
+    SqlDatabase = 'ProjectStatus'
+}
+$projectstatus.SqlCredential = [PSCredential]::new($projectstatus.SqlLogin, ($projectstatus.SqlPassword | ConvertTo-SecureString -AsPlainText -Force))
+$projectstatus.SqlConnection = Connect-SqlInstance -Instance $projectstatus.SqlInstance -Credential $projectstatus.SqlCredential -Database $projectstatus.SqlDatabase
 
 
 Write-PSFMessage -Level Host -Message 'Finished'
