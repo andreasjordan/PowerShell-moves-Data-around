@@ -7,18 +7,19 @@ PID=$!
 echo "Waiting for SQL Server to be available..."
 
 # Wait until SQL Server is ready
-until /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "Passw0rd!" -C -Q "SELECT 1" &> /dev/null; do
+# MSSQL_SA_PASSWORD is the password this container was started with, so it is already right here
+until /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "$MSSQL_SA_PASSWORD" -C -Q "SELECT 1" &> /dev/null; do
   echo "Waiting..."
   sleep 2
 done
 
 echo "Connected to SQL Server."
 
-/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "Passw0rd!" -C -i /init-scripts/timesheets.sql
-/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "Passw0rd!" -C -i /init-scripts/stackexchange.sql
-/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "Passw0rd!" -C -i /init-scripts/geodata.sql
-/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "Passw0rd!" -C -i /init-scripts/photoservice.sql
-/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "Passw0rd!" -C -i /init-scripts/projectstatus.sql
+/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "$MSSQL_SA_PASSWORD" -C -i /init-scripts/timesheets.sql
+/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "$MSSQL_SA_PASSWORD" -C -i /init-scripts/stackexchange.sql
+/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "$MSSQL_SA_PASSWORD" -C -i /init-scripts/geodata.sql
+/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "$MSSQL_SA_PASSWORD" -C -i /init-scripts/photoservice.sql
+/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "$MSSQL_SA_PASSWORD" -C -i /init-scripts/projectstatus.sql
 
 echo "SQL Server configuration complete."
 
