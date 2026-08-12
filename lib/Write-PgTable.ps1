@@ -160,7 +160,7 @@ function Write-PgTable {
             $stopwatch.Stop()
             Write-PSFMessage -Level Verbose -Message "Finished import in $($stopwatch.ElapsedMilliseconds) Milliseconds"
         } catch {
-            Stop-PSFFunction -Message "???? failed: $($_.Exception.Message)" -EnableException $EnableException
+            Stop-PSFFunction -Message "Inserting rows failed: $($_.Exception.Message)" -Target $Table -EnableException $EnableException
             return
         } finally {
             Write-Progress -Id 1 -Activity x -Completed

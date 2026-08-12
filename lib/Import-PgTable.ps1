@@ -120,6 +120,12 @@ function Import-PgTable {
                     } else {
                         $sourceColumnName = $column.ColumnName
                     }
+                    # The property access is case insensitive, and that is load bearing rather than
+                    # incidental: $sourceColumnName comes from the target table, while the name in the
+                    # file is whatever the XML attribute is called. Against PostgreSQL the two never
+                    # match exactly - unquoted identifiers are folded, so the catalog says "aboutme"
+                    # and the file says "AboutMe". A case sensitive lookup would fill every column
+                    # with NULL, report the right number of rows and return success.
                     $value = $rowObject.$sourceColumnName
                     if ($null -ne $value) {
                         $newRow[$column.ColumnName] = $value

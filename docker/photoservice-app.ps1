@@ -214,14 +214,21 @@ while ($true) {
     if ((Get-Date) -gt $newPayment.NextRun) {
         Add-LoggingEvent -Component Payment -Message 'Starting NewPayment'
 
-        $payment = [PSCustomObject]@{
-            OrderId     = Invoke-PgQuery -Connection $dbConfig.PgConnection -Query 'SELECT id FROM order_header WHERE payment_uuid IS NULL ORDER BY RANDOM() LIMIT 1' -As SingleValue
-            PaymentUuid = New-Guid
-            UpdatedAt   = [datetime]::Now
+        $orderId = Invoke-PgQuery -Connection $dbConfig.PgConnection -Query 'SELECT id FROM order_header WHERE payment_uuid IS NULL ORDER BY RANDOM() LIMIT 1' -As SingleValue
+
+        # Every order may already be paid for - the payment loop runs as often as the order loop and
+        # can catch up with it. Without this check the UPDATE matches no row and the INSERT writes an
+        # order_event whose order_id is NULL, which every later join has to cope with.
+        if ($null -ne $orderId) {
+            $payment = [PSCustomObject]@{
+                OrderId     = $orderId
+                PaymentUuid = New-Guid
+                UpdatedAt   = [datetime]::Now
+            }
+            Invoke-PgQuery -Connection $dbConfig.PgConnection -Query 'UPDATE order_header SET updated_at = :updated_at, payment_uuid = :payment_uuid WHERE id = :id' -ParameterValues @{ updated_at = $payment.UpdatedAt ; payment_uuid = $payment.PaymentUuid ; id = $payment.OrderId }
+            Invoke-PgQuery -Connection $dbConfig.PgConnection -Query 'INSERT INTO order_event (order_id, updated_at, payment_uuid) VALUES (:order_id, :updated_at, :payment_uuid)' -ParameterValues @{ order_id = $payment.OrderId ; updated_at = $payment.UpdatedAt ; payment_uuid = $payment.PaymentUuid }
+            Add-LoggingEvent -Component Payment -Message 'Added payment' -Details $payment
         }
-        Invoke-PgQuery -Connection $dbConfig.PgConnection -Query 'UPDATE order_header SET updated_at = :updated_at, payment_uuid = :payment_uuid WHERE id = :id' -ParameterValues @{ updated_at = $payment.UpdatedAt ; payment_uuid = $payment.PaymentUuid ; id = $payment.OrderId }
-        Invoke-PgQuery -Connection $dbConfig.PgConnection -Query 'INSERT INTO order_event (order_id, updated_at, payment_uuid) VALUES (:order_id, :updated_at, :payment_uuid)' -ParameterValues @{ order_id = $payment.OrderId ; updated_at = $payment.UpdatedAt ; payment_uuid = $payment.PaymentUuid }
-        Add-LoggingEvent -Component Payment -Message 'Added payment' -Details $payment
 
         $newPayment.NextRun = (Get-Date).AddSeconds($newPayment.DelaySec)
         Add-LoggingEvent -Component Payment -Message "Scheduled next payment for $($newPayment.NextRun)"
@@ -230,14 +237,19 @@ while ($true) {
     if ((Get-Date) -gt $newShipment.NextRun) {
         Add-LoggingEvent -Component Shipment -Message 'Starting NewShipment'
 
-        $shipment = [PSCustomObject]@{
-            OrderId      = Invoke-PgQuery -Connection $dbConfig.PgConnection -Query 'SELECT id FROM order_header WHERE payment_uuid IS NOT NULL AND shipment_uuid IS NULL ORDER BY RANDOM() LIMIT 1' -As SingleValue
-            ShipmentUuid = New-Guid
-            UpdatedAt    = [datetime]::Now
+        $orderId = Invoke-PgQuery -Connection $dbConfig.PgConnection -Query 'SELECT id FROM order_header WHERE payment_uuid IS NOT NULL AND shipment_uuid IS NULL ORDER BY RANDOM() LIMIT 1' -As SingleValue
+
+        # Same hole as the payment block above: everything paid for may already have shipped
+        if ($null -ne $orderId) {
+            $shipment = [PSCustomObject]@{
+                OrderId      = $orderId
+                ShipmentUuid = New-Guid
+                UpdatedAt    = [datetime]::Now
+            }
+            Invoke-PgQuery -Connection $dbConfig.PgConnection -Query 'UPDATE order_header SET updated_at = :updated_at, shipment_uuid = :shipment_uuid WHERE id = :id' -ParameterValues @{ updated_at = $shipment.UpdatedAt ; shipment_uuid = $shipment.ShipmentUuid ; id = $shipment.OrderId }
+            Invoke-PgQuery -Connection $dbConfig.PgConnection -Query 'INSERT INTO order_event (order_id, updated_at, shipment_uuid) VALUES (:order_id, :updated_at, :shipment_uuid)' -ParameterValues @{ order_id = $shipment.OrderId ; updated_at = $shipment.UpdatedAt ; shipment_uuid = $shipment.ShipmentUuid }
+            Add-LoggingEvent -Component Shipment -Message 'Added shipment' -Details $shipment
         }
-        Invoke-PgQuery -Connection $dbConfig.PgConnection -Query 'UPDATE order_header SET updated_at = :updated_at, shipment_uuid = :shipment_uuid WHERE id = :id' -ParameterValues @{ updated_at = $shipment.UpdatedAt ; shipment_uuid = $shipment.ShipmentUuid ; id = $shipment.OrderId }
-        Invoke-PgQuery -Connection $dbConfig.PgConnection -Query 'INSERT INTO order_event (order_id, updated_at, shipment_uuid) VALUES (:order_id, :updated_at, :shipment_uuid)' -ParameterValues @{ order_id = $shipment.OrderId ; updated_at = $shipment.UpdatedAt ; shipment_uuid = $shipment.ShipmentUuid }
-        Add-LoggingEvent -Component Shipment -Message 'Added shipment' -Details $shipment
 
         $newShipment.NextRun = (Get-Date).AddSeconds($newShipment.DelaySec)
         Add-LoggingEvent -Component Shipment -Message "Scheduled next shipment for $($newShipment.NextRun)"
