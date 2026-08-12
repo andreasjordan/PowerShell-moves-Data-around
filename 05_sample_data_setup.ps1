@@ -1,3 +1,10 @@
+param (
+    # The Excel files are rebuilt from sample.json every run, which costs a second. The downloads
+    # are about 15 MB from three different sites, most of it countries.geojson, so they are skipped
+    # when the files are already there. Use -Force to fetch them again.
+    [switch]$Force
+)
+
 $ErrorActionPreference = 'Stop'
 
 $hostname = '127.0.0.1'
@@ -8,6 +15,35 @@ Write-PSFMessage -Level Host -Message 'Importing PowerShell functions'
 foreach ($file in (Get-ChildItem -Path $PSScriptRoot/lib/*-*.ps1)) { . $file.FullName }
 $PSDefaultParameterValues = @{
     "*-Mio*:EnableException" = $true
+}
+
+
+# A helper for the four downloads below. It lives here rather than in lib/, so it does not follow
+# the lib/ function contract: this is a setup script, and a failure here should stop it.
+function Save-SampleFile {
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory)][string]$Uri,
+        [Parameter(Mandatory)][string]$Path
+    )
+
+    # Download to a temporary name and rename only once the whole file has arrived. A half written
+    # countries.geojson otherwise stays behind looking like a perfectly good file and fails much
+    # later, inside demo 03, as a JSON parse error that says nothing about a download.
+    $partPath = "$Path.part"
+    $response = Invoke-WebRequest -Uri $Uri -OutFile $partPath -UseBasicParsing -PassThru
+
+    # A server that closes the connection early gives a short file and no error at all, so compare
+    # what arrived against what was announced. A chunked response announces nothing, and then there
+    # is nothing to compare against.
+    $expectedLength = $response.Headers['Content-Length'] | Select-Object -First 1
+    $length = (Get-Item -Path $partPath).Length
+    if ($expectedLength -and $length -ne [int64]$expectedLength) {
+        Remove-Item -Path $partPath
+        throw "Download of $Uri is incomplete: got $length bytes, expected $expectedLength"
+    }
+
+    Move-Item -Path $partPath -Destination $Path -Force
 }
 
 
@@ -91,19 +127,30 @@ $stackexchange = @{
     Site        = 'dba.meta'
     DataPath    = 'data/stackexchange'
 }
-Remove-item -Path "$($stackexchange.DataPath)/*.xml" -ErrorAction Ignore
 $stackexchange.MioCredential = [PSCredential]::new($stackexchange.MioUser, ($stackexchange.MioPassword | ConvertTo-SecureString -AsPlainText -Force))
 $stackexchange.MioConnection = Connect-MioInstance -Instance $stackexchange.MioInstance -Credential $stackexchange.MioCredential -Bucket $stackexchange.MioBucket
-Write-PSFMessage -Level Host -Message 'Downloading StackExchange data'
-Push-Location -Path $stackexchange.DataPath
-Invoke-WebRequest -Uri "https://archive.org/download/stackexchange/$($stackexchange.Site).stackexchange.com.7z" -OutFile tmp.7z -UseBasicParsing
-if ($IsLinux) {
-    $null = 7za e tmp.7z
+
+# "Are there any XML files" is a coarse check on purpose. It does not notice a half extracted
+# archive, and should not try to - -Force is the answer to that, and a setup script that models
+# partial states stops being readable.
+$xmlFiles = @(Get-ChildItem -Path "$($stackexchange.DataPath)/*.xml" -ErrorAction Ignore)
+if ($xmlFiles.Count -gt 0 -and -not $Force) {
+    Write-PSFMessage -Level Host -Message "Keeping the $($xmlFiles.Count) StackExchange XML files that are already there"
 } else {
-    $null = C:\Progra~1\7-Zip\7z.exe e tmp.7z
+    Write-PSFMessage -Level Host -Message 'Downloading StackExchange data'
+    Remove-Item -Path "$($stackexchange.DataPath)/*.xml" -ErrorAction Ignore
+    Push-Location -Path $stackexchange.DataPath
+    Save-SampleFile -Uri "https://archive.org/download/stackexchange/$($stackexchange.Site).stackexchange.com.7z" -Path tmp.7z
+    if ($IsLinux) {
+        $null = 7za e -y tmp.7z
+    } else {
+        $null = C:\Progra~1\7-Zip\7z.exe e -y tmp.7z
+    }
+    Remove-Item -Path tmp.7z
+    Pop-Location
 }
-Remove-Item -Path tmp.7z
-Pop-Location
+
+# The upload runs either way, because the bucket is empty again after a "docker compose down -v"
 Write-PSFMessage -Level Host -Message 'Importing StackExchange data to MinIO'
 $files = Get-ChildItem -Path $stackexchange.DataPath
 foreach ($file in $files) {
@@ -118,29 +165,50 @@ foreach ($file in $files) {
 $geodata = @{
     DataPath    = 'data/geodata'
 }
-Remove-Item -Path "$($geodata.DataPath)/*.gpx" -ErrorAction Ignore
-Remove-Item -Path "$($geodata.DataPath)/*.geojson" -ErrorAction Ignore
-Remove-Item -Path "$($geodata.DataPath)/radrouten-berlin" -Recurse -ErrorAction Ignore
-Push-Location -Path $geodata.DataPath
-Write-PSFMessage -Level Host -Message 'Downloading GPX data from berlin.de'
-$null = New-Item -Path radrouten-berlin -ItemType Directory | Push-Location
-Invoke-WebRequest -Uri https://www.berlin.de/sen/uvk/_assets/verkehr/verkehrsplanung/radverkehr/radrouten/radrouten_komplett.7z -OutFile tmp.7z -UseBasicParsing
-if ($IsLinux) {
-    $null = 7za x tmp.7z
+$geodata.RadroutenPath = "$($geodata.DataPath)/radrouten-berlin"
+$geodata.SingleGpxPath = "$($geodata.DataPath)/michael-mueller-verlag-berlin.gpx"
+$geodata.CountriesPath = "$($geodata.DataPath)/countries.geojson"
+
+# The three artifacts come from three different sites and are checked one at a time, so deleting
+# one of them does not fetch the other two again
+$radrouten = @(Get-ChildItem -Path "$($geodata.RadroutenPath)/*.gpx" -ErrorAction Ignore)
+if ($radrouten.Count -gt 0 -and -not $Force) {
+    Write-PSFMessage -Level Host -Message "Keeping radrouten-berlin with $($radrouten.Count) GPX files"
 } else {
-    $null = C:\Progra~1\7-Zip\7z.exe x tmp.7z
+    Write-PSFMessage -Level Host -Message 'Downloading GPX data from berlin.de'
+    # Start from a clean directory, so a renamed file in the archive does not linger
+    Remove-Item -Path $geodata.RadroutenPath -Recurse -ErrorAction Ignore
+    $null = New-Item -Path $geodata.RadroutenPath -ItemType Directory
+    Push-Location -Path $geodata.RadroutenPath
+    Save-SampleFile -Uri https://www.berlin.de/sen/uvk/_assets/verkehr/verkehrsplanung/radverkehr/radrouten/radrouten_komplett.7z -Path tmp.7z
+    if ($IsLinux) {
+        $null = 7za x -y tmp.7z
+    } else {
+        $null = C:\Progra~1\7-Zip\7z.exe x -y tmp.7z
+    }
+    Start-Sleep -Seconds 2
+    Remove-Item -Path tmp.7z
+    Pop-Location
 }
-Start-Sleep -Seconds 2
-Remove-Item -Path tmp.7z
-Pop-Location
-Write-PSFMessage -Level Host -Message 'Downloading GPX data from michael-mueller-verlag.de'
-Invoke-WebRequest -Uri https://mmv.me/52630/00.gpx -OutFile michael-mueller-verlag-berlin.gpx -UseBasicParsing
-Write-PSFMessage -Level Host -Message 'Downloading GeoJSON data from datahub.io'
-$geoJSON = Invoke-RestMethod -Method Get -Uri https://datahub.io/core/geo-countries/r/0.geojson
-# Optional: Just select all EU countries
-# $geoJSON.features = $geoJSON.features | Where-Object { $_.properties.'ISO3166-1-Alpha-3' -in 'AUT','BEL','BGR','HRV','CYP','CZE','DNK','EST','FIN','DEU','GRC','HUN','IRL','ITA','LVA','LTU','LUX','MLT','NLD','POL','PRT','ROU','SVK','SVN','ESP','SWE' -or $_.properties.name -in 'France'}
-$geoJSON | ConvertTo-Json -Depth 9 -Compress | Set-Content -Path countries.geojson
-Pop-Location
+
+if ((Test-Path -Path $geodata.SingleGpxPath) -and -not $Force) {
+    Write-PSFMessage -Level Host -Message "Keeping $(Split-Path -Path $geodata.SingleGpxPath -Leaf)"
+} else {
+    Write-PSFMessage -Level Host -Message 'Downloading GPX data from michael-mueller-verlag.de'
+    Save-SampleFile -Uri https://mmv.me/52630/00.gpx -Path $geodata.SingleGpxPath
+}
+
+if ((Test-Path -Path $geodata.CountriesPath) -and -not $Force) {
+    Write-PSFMessage -Level Host -Message "Keeping $(Split-Path -Path $geodata.CountriesPath -Leaf)"
+} else {
+    Write-PSFMessage -Level Host -Message 'Downloading GeoJSON data from datahub.io'
+    # The whole world, 258 features and about 14 MB. It used to be read with Invoke-RestMethod and
+    # written back out, so that the countries could optionally be reduced to the EU - but that
+    # filter was commented out while demo/03_geodata.ps1 went on claiming 27 features. The largest
+    # geometry is Canada at 1.5 MB of JSON, which is what makes the Oracle bind parameter in
+    # Invoke-OraQuery interesting, so the full set is the better sample data.
+    Save-SampleFile -Uri https://datahub.io/core/geo-countries/r/0.geojson -Path $geodata.CountriesPath
+}
 
 
 # ProjectStatus

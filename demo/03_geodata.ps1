@@ -170,7 +170,7 @@ $geoJSON = Get-Content -Path ../data/geodata/countries.geojson | ConvertFrom-Jso
 
 $geoJSON | Format-List
 $geoJSON.crs | Format-List  # CRS84 = WGS84 = EPSG:4326
-$geoJSON.features.Count  # 27 - only the EU
+$geoJSON.features.Count  # 258 - the whole world, and the largest geometry is Canada with 1.5 MB of JSON
 $geoJSON.features[0] | Format-List
 $geoJSON.features[0].properties | Format-List
 $geoJSON.features[0].geometry | Format-List

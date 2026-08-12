@@ -6,3 +6,7 @@ data/geodata/*.gpx
 data/geodata/*/*.gpx
 data/geodata/*.geojson
 data/projectstatus/*.xlsx
+
+# 05_sample_data_setup.ps1 downloads to <name>.part and renames when the file is complete,
+# so one of these is only ever left behind by a download that was interrupted
+data/**/*.part
