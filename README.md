@@ -8,6 +8,11 @@ The code is based on some of my customer projects, but has been greatly simplifi
 This repository is intended to help you set up an initial proof of concept. However, the code is not suitable for direct productive use.
 If you would like assistance with productive use, please contact me.
 
+There is a sibling project that does the same things in Python:
+[Python moves Data around](https://github.com/andreasjordan/Python-moves-Data-around). The two are
+meant to be shown next to each other, and they are meant to live in the same WSL2 installation - see
+[Sharing one WSL2 installation with the sibling repository](#sharing-one-wsl2-installation-with-the-sibling-repository).
+
 
 
 ## Supported data sources and targets
@@ -29,6 +34,8 @@ If you would like assistance with productive use, please contact me.
 
 Some functionality can be used (and some can be changed to work) with Windows PowerShell 5.1, but most of the code is targeted at PowerShell 7 and tested with the current version PowerShell 7.5.1.
 
+`01_setup.ps1` itself needs PowerShell 7, because it loads the ADO.NET drivers to check that they work on this side.
+
 The code is both tested on Windows 11 and an Ubuntu WSL2.
 
 
@@ -37,8 +44,10 @@ The code is both tested on Windows 11 and an Ubuntu WSL2.
 
 | Path | Content |
 | --- | --- |
-| `01_setup.ps1` … `06_test_connections.ps1` | The setup steps. `01_setup.ps1` runs all of them. |
-| `start_containers.ps1` | Restarts the containers after a reboot. |
+| `01_setup.ps1` … `06_test_connections.ps1` | The setup steps. `01_setup.ps1` runs all of them. It builds the environment; it does not start a demo. |
+| `07_check_ports.ps1` | Not a setup step. Checks whether Windows can reach the container ports, for when something cannot connect. |
+| `modules.txt` | The list of PowerShell modules the demos need. Both installs read it. |
+| `start_demo.ps1` | Starts the containers and keeps them running. This is what you run before a demo. |
 | `data/` | One directory per scenario for the sample data. The generated and downloaded files are not part of the repository. |
 | `demo/` | The demo scripts, plus an `init_<scenario>.ps1` per scenario that opens the needed connections. |
 | `docker/` | The compose file, the database init scripts and the PhotoService application. |
@@ -109,6 +118,10 @@ This scenario needs PowerShell 7.
 
 This scenario needs PowerShell 7.
 
+The application container is the source of every customer and order the second half of this demo
+transfers, and it staggers its work over the first twenty minutes after it starts. Give it that time
+before expecting anything to be there - inside that window the demo looks broken and is not.
+
 
 ### ProjectStatus
 
@@ -135,13 +148,45 @@ Two of the containers have a web interface:
 - MinIO: http://127.0.0.1:9001/login
 - pgAdmin: http://127.0.0.1:5050/browser/
 
-All accounts use the same password, which is configured in `docker/.env`. As this is a demo environment that only runs locally, the password is part of the repository.
+All accounts use the same password. As this is a demo environment that only runs locally, the password
+is part of the repository. `docker/.env` is where it is configured for the containers themselves, and
+`04_docker_compose.sh` reads it from there - but the `CREATE USER` statements in the init SQL still have
+it as a literal, so changing `docker/.env` alone is not enough to change it everywhere.
 
 The initial PowerShell code must be run inside WSL2 to set up the sample data.
 
 The demo PowerShell code can be executed either inside WSL2 or on the Windows 11 system. However, to run all demos, PowerShell 7.5 or later is required.
 
-A video of the installation is available here: https://youtu.be/0NNNqPau4Go
+A video of the installation is available here: https://youtu.be/0NNNqPau4Go — note that it predates the
+split described below, and shows `start_containers.ps1`, which is now `start_demo.ps1`.
+
+
+### Sharing one WSL2 installation with the sibling repository
+
+Both repositories are meant to live in the same WSL2 installation. Neither one names a distribution, so
+both use the default - install Ubuntu once, then run `01_setup.ps1` in each repository. The second run
+finds docker and 7-Zip already there and only does its own half. Expect Oracle's first start twice,
+though, once per repository: the volumes belong to the stack, not to the machine.
+
+`01_setup.ps1` **sets the machine up, it does not start a demo.** It stops the containers again at the
+end, which is what makes running it in both repositories possible: the other setup would otherwise find
+these containers holding every port it wants.
+
+To demo, run `start_demo.ps1`. Both repositories publish the same ports, so only one stack can run at a
+time, and `start_demo.ps1` stops the other one for you before starting its own. That is a stop and not
+a `down`, so the volumes on both sides survive - switching back and forth costs a minute, not another
+Oracle start.
+
+To see which stack is currently running:
+
+```
+wsl --user root docker compose ls
+```
+
+**One thing to plan the running order of a session around.** Switching restarts the PhotoService
+container, which truncates its tables and restarts its twenty-minute schedule - so the PhotoService demo
+is empty for twenty minutes after every switch, on whichever side you switch to. Until that schedule is
+shortened, put that demo last on each side and switch only once.
 
 
 ### Install WSL2
@@ -179,11 +224,106 @@ Get-ChildItem -Path $PWD\PowerShell-moves-Data-around -Filter *.ps1 -Recurse | U
 
 ### Start the installation
 
-To run all setup steps, simply execute `01_setup.ps1` in a non-elevated PowerShell.
+To run all setup steps, simply execute `01_setup.ps1` in a non-elevated PowerShell 7. It shells into
+WSL2 for most of them, and finishes on the Windows side:
 
-At the end, the script enters WSL2 to keep all Docker containers running. If you exit, WSL2 will shut down along with all containers.
+| Step | Runs as | What it does |
+| --- | --- | --- |
+| `03_pwsh_setup.ps1 -Scope CurrentUser` | you, on Windows | The modules in `modules.txt`, and the ADO.NET drivers. First, because it is the only step that costs nothing when it fails |
+| `02_wsl2_setup.sh` | root, in WSL2 | PowerShell, Docker and 7-Zip |
+| `03_pwsh_setup.ps1 -Scope AllUsers` | root, in WSL2 | The same modules again, machine-wide so that the PhotoService container can mount them |
+| `04_docker_compose.sh` | root, in WSL2 | Waits for the docker daemon, starts the containers, and waits until SQL Server, PostgreSQL, MongoDB and Oracle have created the demo databases |
+| `05_sample_data_setup.ps1` | you, in WSL2 | Creates the Excel files from `sample.json` and downloads the StackExchange and Geodata samples. A download is skipped when its files are already there; `-Force` fetches them again |
+| `06_test_connections.ps1` | you, in WSL2 | Opens a connection to every database a demo uses |
+| `06_test_connections.ps1` again | you, on Windows | Waits until Windows can reach the container ports, then runs the same check from the side that runs the demos |
+| `docker compose stop` | root, in WSL2 | Stops the containers again. The setup is finished; `start_demo.ps1` is what starts a demo |
+
+The first and last rows are not an afterthought. The demos are usually run from Windows, so without them
+the setup can finish green while a module or a driver is missing on that side. And the two runs of `06`
+do not prove the same thing: the one in WSL2 reaches the containers over the WSL2 loopback, while the
+one on Windows goes through the port forwarding that Windows sets up. Those forwards do not all appear
+at the same moment, which is why the last step waits for them first - a connection refused from Windows
+usually means the forward is not there yet, not that the database is down.
+
+The last three rows all run on the Windows side, so the script holds WSL2 open with a background `wsl`
+process while they do. Without it WSL2 shuts the distribution down a few seconds after its last command
+finishes and takes every container with it, and the connection test then fails against databases that
+are no longer running.
+
+A failure in the connection test from Windows does not stop the script before the stop below - the
+script reports the failure once the containers are down, and `start_demo.ps1` brings them back in a
+minute if you want to look into it.
+
+The whole run takes about half an hour, nearly all of it Oracle starting for the first time. That is
+the price of the volumes, and it is paid once per repository - see
+[Sharing one WSL2 installation with the sibling repository](#sharing-one-wsl2-installation-with-the-sibling-repository)
+if you are installing both.
 
 
-### Restart the docker containers
+### Start the demo
 
-To restart the containers, simply execute `start_containers.ps1` in a non-elevated PowerShell.
+Execute `start_demo.ps1` in a non-elevated PowerShell. It starts the containers, waits until the
+databases answer, and then sits in a WSL2 shell. **If you exit that shell, WSL2 shuts down and takes
+the containers with it**, so leave the window open for as long as you are demoing.
+
+This keeps all data. It is a start, not a reset - the volumes survive, so every table a demo wrote last
+time is still there. One thing to expect in `docker compose logs sqlserver` afterwards: its init script
+runs on every start and its `CREATE LOGIN` / `CREATE DATABASE` statements are unconditional, so the log
+fills with "already exists" errors. They are harmless and the databases are fine.
+
+Run this after a reboot too, and whenever you are switching back from the sibling repository - it stops
+that repository's containers first, because both publish the same ports.
+
+
+### Reset the containers
+
+A demo leaves data behind, and the next run of the same demo may not like it. There are two levels of
+reset, and the cheap one is usually the one you want.
+
+Both commands below are run from the repository directory, and both need the containers to be up -
+they talk to the docker daemon inside WSL2. If WSL2 has been shut down, run `start_demo.ps1` first,
+because that is what starts the daemon.
+
+**Just the PhotoService application.** This is what the PhotoService demo needs, and it costs seconds:
+
+```
+wsl --cd "$PWD\docker" --user root docker compose restart photoservice
+```
+
+The application clears its own PostgreSQL tables and its MongoDB collection when it starts, so this puts
+it back to nothing. It also restarts the clock: the first order is scheduled ten minutes later, the
+first payment at fifteen, the first shipment at twenty.
+
+**Everything, back to how the setup left it:**
+
+```
+wsl --cd "$PWD\docker" --user root docker compose down -v
+.\start_demo.ps1
+```
+
+`-v` is the whole point - it removes the named volumes, and that is what actually deletes the data.
+Without it you get the restart described above. With it, every container starts empty and re-runs its
+init scripts, so all five scenarios' databases are created again exactly as the setup made them.
+
+This costs another Oracle start, so budget about fifteen minutes. It does not re-download the images.
+
+
+### When something cannot connect
+
+Execute `07_check_ports.ps1` in a second PowerShell window, while the other one sits in its WSL2
+shell. For every published port it says whether Windows has a listener for it and whether a connection
+gets through:
+
+```
+1433   SQL Server         CONNECT   listener on ::1 (wslrelay)
+1521   Oracle             CONNECT   listener on ::1 (wslrelay)
+...
+```
+
+`NO LISTENER` means Windows has not published that container port yet. The database is very probably
+running and answering fine inside WSL2 - the forward is what is missing, and the usual answer is to
+wait a little. This is worth knowing because a driver reports it as an error about the *database*, when
+in fact nothing was listening on this side to refuse the connection.
+
+If every port connects and a demo still cannot reach a database, the network is not the problem - run
+`06_test_connections.ps1`, which asks the drivers rather than the sockets.

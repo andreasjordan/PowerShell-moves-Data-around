@@ -66,6 +66,11 @@ Prefixes: **Sql** = SQL Server · **Ora** = Oracle · **Pg** = PostgreSQL · **M
 | Function | Purpose |
 | --- | --- |
 | `Write-SqlTable` / `Write-OraTable` / `Write-PgTable` | Bulk-load either `-Data` (objects) or `-DataReader` (streaming) into `-Table`. `-BatchSize` defaults to 1000, `-TruncateTable` empties first, `-Transaction` is supported. Reports progress with `Write-Progress -Id 1`. |
+
+The three writers are siblings from the outside and not underneath: `Write-SqlTable` uses `SqlBulkCopy`
+and `Write-OraTable` uses `OracleBulkCopy`, but `Write-PgTable` fills a `DataTable` and lets an
+`NpgsqlDataAdapter` generate the `INSERT` statements. PostgreSQL's own bulk path, `COPY`, is not used —
+the Python port measured that at 7× slower, and replacing it is entry 3 of `SIBLING-FINDINGS.md`.
 | `Write-MdbCollection` | Insert objects into a collection. `-Convert` reshapes each object, `-Id` and `-Property` control upserts. |
 | `Remove-MdbCollection` | Drop a collection. |
 
@@ -89,8 +94,25 @@ Prefixes: **Sql** = SQL Server · **Ora** = Oracle · **Pg** = PostgreSQL · **M
 
 ## Gaps in the grid
 
-The grid is intentionally not square. MongoDB and MinIO are demonstrated at a narrower scope than the
-three relational databases, so these cells are simply not implemented:
+The names are fixed by the naming grid, so the empty cells are worth writing down before anyone invents
+a different name for them. **✔** marks what exists and **—** is a cell that makes no sense for that
+provider:
+
+| Family | SQL Server | Oracle | PostgreSQL | MongoDB | MinIO |
+| --- | --- | --- | --- | --- | --- |
+| Connect | ✔ `Connect-SqlInstance` | ✔ `Connect-OraInstance` | ✔ `Connect-PgInstance` | ✔ `Connect-MdbInstance` | ✔ `Connect-MioInstance` |
+| Query, all at once | ✔ `Invoke-SqlQuery` | ✔ `Invoke-OraQuery` | ✔ `Invoke-PgQuery` | — | — |
+| Query, streamed | ✔ `Read-SqlQuery` | ✔ `Read-OraQuery` | ✔ `Read-PgQuery` | ✔ `Read-MdbCollection` | — |
+| Reader for streaming into a writer | ✔ `Get-SqlDataReader` | ✔ `Get-OraDataReader` | ✔ `Get-PgDataReader` | — | — |
+| Bulk write | ✔ `Write-SqlTable` | ✔ `Write-OraTable` | ✔ `Write-PgTable` | ✔ `Write-MdbCollection` | — |
+| File → table | ✔ `Import-SqlTable` | ✔ `Import-OraTable` | ✔ `Import-PgTable` | — | — |
+| Table → file | ✔ `Export-SqlTable` | ✔ `Export-OraTable` | ✔ `Export-PgTable` | — | — |
+| Column metadata | ✔ `Get-SqlTableInformation` | ✔ `Get-OraTableInformation` | ✔ `Get-PgTableInformation` | — | — |
+| Drop | — | — | — | ✔ `Remove-MdbCollection` | ✔ `Remove-MioFile` |
+| Whole files | — | — | — | — | ✔ `Get-MioFile`, `Get-MioFileList`, `Set-MioFile` |
+| Load the driver | — | ✔ `Import-OraLibrary` | ✔ `Import-PgLibrary` | — | — |
+
+Why the dashes are dashes:
 
 - No `Import-Mdb*` / `Export-MdbCollection` and no `Get-MdbTableInformation` — the MongoDB demo writes
   objects that come from a relational source, and a schemaless collection has no column metadata to
@@ -101,6 +123,13 @@ three relational databases, so these cells are simply not implemented:
 - `Connect-SqlInstance` is the only `Connect-*` where `-Credential` is optional, and
   `Connect-OraInstance` is the only one without `-Database` (Oracle uses the service name in
   `-Instance`).
+- Only Oracle and PostgreSQL need an `Import-*Library`: `System.Data.SqlClient` ships with .NET, and the
+  MongoDB and MinIO paths need no DLL of their own.
+
+**The `Mio` column is on its way out**, and its cells should not be filled in. MinIO changed its licence,
+and uploading files is a different question from the one every other column answers — entry 9 of
+`SIBLING-FINDINGS.md`. The column the sibling repository has and this one does not is **Kafka**, which is
+entry 10 of the same file.
 
 When you add a function to one provider, check whether the same function belongs in its siblings, and
 either add it there too or record the reason here.
