@@ -331,10 +331,44 @@ into this file.
 
 The containers are probably not running, and starting them costs a WSL2 boot and several minutes.
 
-**Do not run** `wsl`, `docker compose up`/`down`, `01_setup.ps1`, `start_demo.ps1` or any script in
-`demo/`. **`docker compose down -v` in particular is a twenty-minute mistake** — the `-v` deletes the
-volumes, and getting them back means another Oracle start. Recommend it, never run it.
-`07_check_ports.ps1` **is** safe to run. Verify statically otherwise:
+**Whether an agent may drive the lab is a per-machine decision**, because it depends on whether that
+WSL2 installation is disposable. It is recorded in `.claude/settings.local.json`, which is **not**
+committed — do not put it in the shared `settings.json`, which would grant it on the machine of
+everyone who clones this repository.
+
+On the owner's machine it is granted: WSL2 serves only these two repositories and can be reinstalled,
+so `wsl` and the setup scripts are allowed there. **If your `settings.local.json` does not grant it,
+the containers are off limits** — verify statically and say so, rather than starting anything.
+
+Where it is granted, two limits remain, and the second is a trap rather than a rule:
+
+- **`wsl --unregister` needs the owner**, because putting the distribution back needs an elevated
+  session. It stays denied even on the owner's machine.
+- **`docker compose down -v` is a twenty-minute mistake.** The `-v` deletes the volumes and getting
+  them back means another Oracle start. There is almost never a reason — `docker compose stop` keeps
+  the data and costs a minute.
+
+**Hold WSL2 open before you start anything, and keep holding it.** WSL2 terminates the distribution a
+few seconds after its last process exits, and every container goes with it — so a stack started by one
+tool call is gone before the next one runs. Start a detached keepalive first and leave it running:
+
+```powershell
+$p = Start-Process -FilePath wsl -ArgumentList 'sleep', '36000' -PassThru -WindowStyle Hidden
+```
+
+**Do not run `start_demo.ps1` itself.** Its last line is an interactive `wsl` shell whose only job is to
+be that keepalive, and it will hang a non-interactive session. Run `04_docker_compose.sh` directly
+instead — it is the part that does the work:
+
+```powershell
+wsl --cd $repositoryRoot --user root ./04_docker_compose.sh
+```
+
+Demo scripts are still **never run end to end** — the `break` on line 1 stays, and the rules in
+"Demo scripts are stepped through, never run" are unchanged. Running a *selected section* against live
+containers is fine and is how a demo gets tested. `07_check_ports.ps1` is safe at any time.
+
+Static checks are still worth running first, because they cost nothing:
 
 ```powershell
 # Syntax check
