@@ -387,8 +387,10 @@ Write-SqlTable @invokeParams
 
 `[PSCustomObject]` arrays are the canonical in-memory shape for data in flight.
 
-**Do not reformat lines you are not otherwise changing.** There is pre-existing trailing whitespace in
-places; leave it alone unless the task is explicitly a formatting pass.
+**Do not reformat lines you are not otherwise changing.** That is about wrapping, quoting and moving
+code around, not about whitespace — every tracked file outside `data/` is clean of trailing whitespace
+and ends with a newline, and `.editorconfig` sets `trim_trailing_whitespace` and `insert_final_newline`
+to keep it that way. So a stray trailing space in a diff is now something you introduced.
 
 ## Adding or changing a demo scenario
 
