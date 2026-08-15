@@ -48,7 +48,7 @@ $keepWsl2Alive = Start-Process -FilePath wsl -ArgumentList 'sleep', '900' -PassT
 # and those moments are not the same for every port. Connecting is cheap and silent, so wait for
 # the forward rather than letting that race decide whether the setup succeeded.
 $deadline = (Get-Date).AddMinutes(3)
-foreach ($port in 1433, 1521, 5432, 27017, 9000) {
+foreach ($port in 1433, 1521, 5432, 27017, 19092) {
     while (-not (Test-Connection -TargetName 127.0.0.1 -TcpPort $port -Quiet)) {
         if ((Get-Date) -gt $deadline) {
             Write-Warning "no port forwarding on Windows for 127.0.0.1:$port"

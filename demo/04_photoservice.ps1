@@ -16,9 +16,6 @@ $PSDefaultParameterValues = @{
     'Invoke-PgQuery:Connection'    = $photoservice.PgConnection
     'Get-PgDataReader:Connection'  = $photoservice.PgConnection
     'Write-PgTable:Connection'     = $photoservice.PgConnection
-    'Get-MioFileList:Connection'   = $photoservice.MioConnection
-    'Get-MioFile:Connection'       = $photoservice.MioConnection
-    'Remove-MioFile:Connection'    = $photoservice.MioConnection
 }
 
 
@@ -257,45 +254,6 @@ $sourceTransaction.Dispose()
 
 
 
-#########################################
-# Transfer data from logging (or kafka) #
-#########################################
-
-
-Invoke-SqlQuery -Query 'TRUNCATE TABLE dbo.customer'
-Invoke-SqlQuery -Query 'TRUNCATE TABLE dbo.order_header'
-Invoke-SqlQuery -Query 'TRUNCATE TABLE dbo.order_detail'
-
-
-$fileList = Get-MioFileList
-foreach ($file in $fileList) {
-    # $file = $fileList[0]
-    $content = Get-MioFile -Key $file.Key | ConvertFrom-Json
-    foreach ($row in $content) {
-        # $row = $content[2]
-        if ($row.message -eq 'Added customer') {
-            Write-SqlTable -Table customer -Data $row.Details -EnableException
-        }
-        if ($row.message -eq 'Added order header') {
-            Write-SqlTable -Table order_header -Data $row.Details -EnableException
-        }
-        if ($row.message -eq 'Added order details') {
-            Write-SqlTable -Table order_detail -Data $row.Details -EnableException
-        }
-        if ($row.message -eq 'Added payment') {
-            Invoke-SqlQuery -Query 'UPDATE dbo.order_header SET updated_at = @updated_at, payment_uuid = @payment_uuid WHERE id = @id' -ParameterValues @{ updated_at = $row.Details.UpdatedAt ; payment_uuid = [System.Guid]$row.Details.PaymentUuid.Guid ; id = $row.Details.OrderId } -EnableException
-        }
-        if ($row.message -eq 'Added shipment') {
-            Invoke-SqlQuery -Query 'UPDATE dbo.order_header SET updated_at = @updated_at, shipment_uuid = @shipment_uuid WHERE id = @id' -ParameterValues @{ updated_at = $row.Details.UpdatedAt ; shipment_uuid = [System.Guid]$row.Details.ShipmentUuid.Guid ; id = $row.Details.OrderId } -EnableException
-        }
-    }
-    Remove-MioFile -Key $file.Key
-}
-
-
-
-
-
 ################################################
 # Transfer data from CDC (Change Data Capture) #
 ################################################
@@ -309,39 +267,6 @@ Invoke-SqlQuery -Query "EXEC sys.sp_cdc_enable_table @source_schema = N'dbo', @s
 
 
 Invoke-SqlQuery -Query "SELECT * FROM cdc.dbo_customer_CT" | Select-Object -Last 10
-
-
-
-
-#############################################
-# Bonus: Import Logging from files on MinIO #
-#############################################
-
-
-Invoke-SqlQuery -Query 'CREATE TABLE logging (id INT, timestamp DATETIME2, hostname VARCHAR(50), appname VARCHAR(50), component VARCHAR(50), level VARCHAR(50), message VARCHAR(500), details NVARCHAR(MAX), CONSTRAINT logging_pk PRIMARY KEY (id))'
-
-$fileList = Get-MioFileList
-foreach ($file in $fileList) {
-    $id = Invoke-SqlQuery -Query 'SELECT ISNULL(MAX(id), 0) FROM logging' -As SingleValue
-    $content = Get-MioFile -Key $file.Key | ConvertFrom-Json
-    $data = foreach ($row in $content) {
-        if ($row.message -ne 'Starting Loop') {
-            $id++
-            [PSCustomObject]@{
-                id        = $id
-                timestamp = $row.timestamp
-                hostname  = $row.hostname
-                appname   = $row.appname
-                component = $row.component
-                level     = $row.level
-                message   = $row.message
-                details   = $( if ($row.details) { $row.details | ConvertTo-Json -Depth 9 -Compress } )
-            }
-        }
-    }
-    Write-SqlTable -Table logging -Data $data
-    Remove-MioFile -Key $file.Key
-}
 
 
 

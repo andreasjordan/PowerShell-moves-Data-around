@@ -211,21 +211,6 @@ Read-MdbCollection -Connection $stackexchange.MdbConnection -Collection Users | 
 
 
 
-##################################
-# Bonus: Getting data from MinIO #
-##################################
-
-
-# MinIO is an Amazon S3 compatible storage that can easily be used with PowerShell
-
-Get-MioFileList -Connection $stackexchange.MioConnection
-
-$usersData = Get-MioFile -Connection $stackexchange.MioConnection -Key Users.xml
-$usersData.Count
-
-
-
-
 
 <####################################################################################################
 

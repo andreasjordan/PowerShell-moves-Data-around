@@ -1,6 +1,6 @@
 # lib/ — the data access layer
 
-These 35 functions are the plumbing the demos build on. They are plain functions in plain files, loaded
+These 40 functions are the plumbing the demos build on. They are plain functions in plain files, loaded
 by dot-sourcing rather than by a module, so that a demo can show exactly which code is being called:
 
 ```powershell
@@ -38,7 +38,7 @@ $PSDefaultParameterValues = @{ "*-Sql*:EnableException" = $true }
 ## The function grid
 
 Prefixes: **Sql** = SQL Server · **Ora** = Oracle · **Pg** = PostgreSQL · **Mdb** = MongoDB ·
-**Mio** = MinIO.
+**Kfk** = Kafka · **Mio** = MinIO, which is no longer part of the lab - see below.
 
 ### Connecting
 
@@ -98,6 +98,32 @@ escaped by hand:
 | `Export-SqlTable` / `Export-OraTable` / `Export-PgTable` | Write `-Table` out to `-Path`. |
 | `Get-SqlTableInformation` / `Get-OraTableInformation` / `Get-PgTableInformation` | Column metadata for one or more tables, used to build column mappings. |
 
+### Event streaming
+
+| Function | Purpose |
+| --- | --- |
+| `Connect-KfkProducer` | A producer for `-Instance`. Checks the connection before returning, so a broker that is not running fails here. |
+| `Connect-KfkConsumer` | A consumer for `-Instance` in `-GroupId`. `-FromBeginning` sets `auto.offset.reset`. |
+| `Write-KfkTopic` | Produce `-Data` to `-Topic` as JSON, one message per object, with an optional `-Key`. Flushes before returning. |
+| `Read-KfkTopic` | Consume from `-Topic` and return `[PSCustomObject]`s, stopping after `-First` messages or `-Timeout` seconds of quiet. |
+
+**There are two connect functions and that is deliberate.** Every other provider here has one
+connection that reads and writes; Kafka has a producer and a consumer, which are different clients
+with different configuration and nothing shared behind them. Inventing a `Connect-KfkInstance` would
+mean inventing a connection Kafka does not have.
+
+**A topic has no end, so `Read-KfkTopic` must be given a stopping rule.** Against a live topic only
+`-First` is guaranteed to return: `-Timeout` waits for a gap in the messages, and while the shop is
+producing there is never one. To read "everything" ask the broker for the high watermark first —
+`demo/06_eventstreaming.ps1` shows it — because "everything" on a topic somebody is still writing to
+is otherwise "forever".
+
+**`-GroupId` is what Kafka remembers a reader by, and `-FromBeginning` is not a rewind.** It sets
+`auto.offset.reset`, which only applies to a group that has never committed an offset. Passing it to
+a group that has read before changes nothing at all, and there is no "start again" setting — starting
+again means a new group id. In a demo that gets re-run this shows up as "the cell returned nothing
+the second time" rather than as an error.
+
 ### Object storage and drivers
 
 | Function | Purpose |
@@ -106,7 +132,25 @@ escaped by hand:
 | `Get-MioFile` | Download an object. |
 | `Set-MioFile` | Upload an object. |
 | `Remove-MioFile` | Delete an object. |
-| `Import-OraLibrary` / `Import-PgLibrary` | Download `Oracle.ManagedDataAccess.dll` / `Npgsql.dll` from nuget.org into `lib/` and load them. |
+| `Import-OraLibrary` / `Import-PgLibrary` / `Import-KfkLibrary` | Download the driver from nuget.org into `lib/` and load it. |
+
+`Import-KfkLibrary` is the odd one of the three, because Kafka is the first driver here that is not
+pure .NET. It fetches **two** packages — `Confluent.Kafka` for the managed wrapper and
+`librdkafka.redist` for the native library underneath — and the native one has to end up in the same
+directory as the managed assembly or the runtime will not find it. Three details are worth knowing
+before touching it:
+
+- **`lib/` is shared by three platforms.** Windows runs the demos, WSL2 runs `06_test_connections.ps1`,
+  and the photoservice container mounts this directory read only. The native file has a different
+  name on each (`librdkafka.dll`, `librdkafka.so`), so both live here at once and each platform
+  fetches its own on first use — which is why the two downloads are guarded separately.
+- **On Linux it takes the `centos8` build, not the plain one.** The plain build links
+  `libsasl2.so.3` and Ubuntu ships `libsasl2.so.2`, so it cannot be loaded at all; the centos8 build
+  has everything linked in and needs nothing but glibc. That is why no apt package has to be
+  installed in WSL2 or in the container.
+- **Nothing loads the native library explicitly.** `Confluent.Kafka.Library::Load` reaches it through
+  `libdl`, which Ubuntu 24.04 no longer ships as a separate library, so asking for it by full path
+  fails where doing nothing works.
 
 ## MinIO is on its way out of the lab
 
@@ -192,19 +236,19 @@ The names are fixed by the naming grid, so the empty cells are worth writing dow
 a different name for them. **✔** marks what exists and **—** is a cell that makes no sense for that
 provider:
 
-| Family | SQL Server | Oracle | PostgreSQL | MongoDB | MinIO |
-| --- | --- | --- | --- | --- | --- |
-| Connect | ✔ `Connect-SqlInstance` | ✔ `Connect-OraInstance` | ✔ `Connect-PgInstance` | ✔ `Connect-MdbInstance` | ✔ `Connect-MioInstance` |
-| Query, all at once | ✔ `Invoke-SqlQuery` | ✔ `Invoke-OraQuery` | ✔ `Invoke-PgQuery` | — | — |
-| Query, streamed | ✔ `Read-SqlQuery` | ✔ `Read-OraQuery` | ✔ `Read-PgQuery` | ✔ `Read-MdbCollection` | — |
-| Reader for streaming into a writer | ✔ `Get-SqlDataReader` | ✔ `Get-OraDataReader` | ✔ `Get-PgDataReader` | — | — |
-| Bulk write | ✔ `Write-SqlTable` | ✔ `Write-OraTable` | ✔ `Write-PgTable` | ✔ `Write-MdbCollection` | — |
-| File → table | ✔ `Import-SqlTable` | ✔ `Import-OraTable` | ✔ `Import-PgTable` | — | — |
-| Table → file | ✔ `Export-SqlTable` | ✔ `Export-OraTable` | ✔ `Export-PgTable` | — | — |
-| Column metadata | ✔ `Get-SqlTableInformation` | ✔ `Get-OraTableInformation` | ✔ `Get-PgTableInformation` | — | — |
-| Drop | — | — | — | ✔ `Remove-MdbCollection` | ✔ `Remove-MioFile` |
-| Whole files | — | — | — | — | ✔ `Get-MioFile`, `Get-MioFileList`, `Set-MioFile` |
-| Load the driver | — | ✔ `Import-OraLibrary` | ✔ `Import-PgLibrary` | — | — |
+| Family | SQL Server | Oracle | PostgreSQL | MongoDB | Kafka | MinIO |
+| --- | --- | --- | --- | --- | --- | --- |
+| Connect | ✔ `Connect-SqlInstance` | ✔ `Connect-OraInstance` | ✔ `Connect-PgInstance` | ✔ `Connect-MdbInstance` | ✔ `Connect-KfkProducer`, `Connect-KfkConsumer` | ✔ `Connect-MioInstance` |
+| Query, all at once | ✔ `Invoke-SqlQuery` | ✔ `Invoke-OraQuery` | ✔ `Invoke-PgQuery` | — | — | — |
+| Query, streamed | ✔ `Read-SqlQuery` | ✔ `Read-OraQuery` | ✔ `Read-PgQuery` | ✔ `Read-MdbCollection` | ✔ `Read-KfkTopic` | — |
+| Reader for streaming into a writer | ✔ `Get-SqlDataReader` | ✔ `Get-OraDataReader` | ✔ `Get-PgDataReader` | — | — | — |
+| Bulk write | ✔ `Write-SqlTable` | ✔ `Write-OraTable` | ✔ `Write-PgTable` | ✔ `Write-MdbCollection` | ✔ `Write-KfkTopic` | — |
+| File → table | ✔ `Import-SqlTable` | ✔ `Import-OraTable` | ✔ `Import-PgTable` | — | — | — |
+| Table → file | ✔ `Export-SqlTable` | ✔ `Export-OraTable` | ✔ `Export-PgTable` | — | — | — |
+| Column metadata | ✔ `Get-SqlTableInformation` | ✔ `Get-OraTableInformation` | ✔ `Get-PgTableInformation` | — | — | — |
+| Drop | — | — | — | ✔ `Remove-MdbCollection` | — | ✔ `Remove-MioFile` |
+| Whole files | — | — | — | — | — | ✔ `Get-MioFile`, `Get-MioFileList`, `Set-MioFile` |
+| Load the driver | — | ✔ `Import-OraLibrary` | ✔ `Import-PgLibrary` | — | ✔ `Import-KfkLibrary` | — |
 
 Why the dashes are dashes:
 

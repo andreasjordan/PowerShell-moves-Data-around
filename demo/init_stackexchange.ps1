@@ -32,10 +32,6 @@ $stackexchange = @{
     MdbUser     = 'stackexchange'
     MdbPassword = 'Passw0rd!'
     MdbDatabase = 'stackexchange'
-    MioInstance = $hostname
-    MioUser     = 'stackexchange'
-    MioPassword = 'Passw0rd!'
-    MioBucket   = 'stackexchange'
     Site        = 'dba.meta'
     DataPath    = '../data/stackexchange'
 }
@@ -47,7 +43,5 @@ $stackexchange.PgCredential = [PSCredential]::new($stackexchange.PgUser, ($stack
 $stackexchange.PgConnection = Connect-PgInstance -Instance $stackexchange.PgInstance -Credential $stackexchange.PgCredential -Database $stackexchange.PgDatabase
 $stackexchange.MdbCredential = [PSCredential]::new($stackexchange.MdbUser, ($stackexchange.MdbPassword | ConvertTo-SecureString -AsPlainText -Force))
 $stackexchange.MdbConnection = Connect-MdbInstance -Instance $stackexchange.MdbInstance -Credential $stackexchange.MdbCredential -Database $stackexchange.MdbDatabase
-$stackexchange.MioCredential = [PSCredential]::new($stackexchange.MioUser, ($stackexchange.MioPassword | ConvertTo-SecureString -AsPlainText -Force))
-$stackexchange.MioConnection = Connect-MioInstance -Instance $stackexchange.MioInstance -Credential $stackexchange.MioCredential -Bucket $stackexchange.MioBucket
 
 Write-PSFMessage -Level Host -Message 'Finished'

@@ -2,14 +2,18 @@
 
 Import-Module PSFramework, Mdbc
 Write-PSFMessage -Level Host -Message 'Importing PowerShell functions'
-foreach ($file in (Get-ChildItem -Path ./lib/*-Pg*.ps1, ./lib/*-Mdb*.ps1, ./lib/*-Mio*.ps1)) { . $file.FullName }
+foreach ($file in (Get-ChildItem -Path ./lib/*-Pg*.ps1, ./lib/*-Mdb*.ps1, ./lib/*-Kfk*.ps1)) { . $file.FullName }
 Write-PSFMessage -Level Host -Message 'Importing database libraries'
 Import-PgLibrary
+Import-KfkLibrary
 $PSDefaultParameterValues = @{
     "*-Pg*:EnableException"  = $true
     "*-Mdb*:EnableException" = $true
-    "*-Mio*:EnableException" = $true
+    "*-Kfk*:EnableException" = $true
 }
+
+# The topic every logging event goes to, and the one demo/06_eventstreaming.ps1 reads
+$topic = 'photoservice.events'
 
 Write-PSFMessage -Level Host -Message 'Reading sample data from files'
 $customerSource = Get-Content -Path ./CustomerSource.json | ConvertFrom-Json
@@ -24,14 +28,12 @@ $dbConfig = @{
     MdbUser     = 'photoservice'
     MdbPassword = 'Passw0rd!'
     MdbDatabase = 'photoservice'
-    MioInstance = 'minio'
-    MioUser     = 'photoservice'
-    MioPassword = 'Passw0rd!'
-    MioBucket   = 'photoservice'
+    # The broker is reached over the compose network here, not on the port published to Windows.
+    # That is why the container advertises two listeners - see docker-compose.yaml.
+    KfkInstance = 'redpanda:9092'
 }
 $dbConfig.PgCredential = [PSCredential]::new($dbConfig.PgUser, ($dbConfig.PgPassword | ConvertTo-SecureString -AsPlainText -Force))
 $dbConfig.MdbCredential = [PSCredential]::new($dbConfig.MdbUser, ($dbConfig.MdbPassword | ConvertTo-SecureString -AsPlainText -Force))
-$dbConfig.MioCredential = [PSCredential]::new($dbConfig.MioUser, ($dbConfig.MioPassword | ConvertTo-SecureString -AsPlainText -Force))
 
 while ($true) {
     try {
@@ -39,8 +41,8 @@ while ($true) {
         $dbConfig.PgConnection = Connect-PgInstance -Instance $dbConfig.PgInstance -Credential $dbConfig.PgCredential -Database $dbConfig.PgDatabase
         Write-PSFMessage -Level Host -Message 'Connecting to MongoDB'
         $dbConfig.MdbConnection = Connect-MdbInstance -Instance $dbConfig.MdbInstance -Credential $dbConfig.MdbCredential -Database $dbConfig.MdbDatabase
-        Write-PSFMessage -Level Host -Message 'Connecting to MinIO'
-        $dbConfig.MioConnection = Connect-MioInstance -Instance $dbConfig.MioInstance -Credential $dbConfig.MioCredential -Bucket $dbConfig.MioBucket
+        Write-PSFMessage -Level Host -Message 'Connecting to Kafka'
+        $dbConfig.KfkProducer = Connect-KfkProducer -Instance $dbConfig.KfkInstance
         break
     } catch {
         Write-PSFMessage -Level Warning -Message "Connection failed: $_"
@@ -54,9 +56,9 @@ Invoke-PgQuery -Connection $dbConfig.PgConnection -Query "TRUNCATE TABLE order_d
 Invoke-PgQuery -Connection $dbConfig.PgConnection -Query "TRUNCATE TABLE order_header"
 Invoke-PgQuery -Connection $dbConfig.PgConnection -Query "TRUNCATE TABLE customer"
 Remove-MdbCollection -Connection $dbConfig.MdbConnection -Collection Orders
-foreach ($file in Get-MioFileList -Connection $dbConfig.MioConnection) {
-    Remove-MioFile -Connection $dbConfig.MioConnection -Key $file.Key
-}
+# The topic is deliberately not emptied. The bucket was, because a log archive that outlives the
+# tables it describes is just confusing - but a topic keeps its history on purpose, and demo 6
+# reads across restarts. The offsets, not the topic, are what a reader starts from.
 
 
 Write-PSFMessage -Level Host -Message 'Reading photo data'
@@ -99,12 +101,13 @@ $newShipment = @{
     NextRun  = (Get-Date).AddSeconds(120)
 }
 
-$newLogging = @{
-    DelaySec = 12
-    NextRun  = Get-Date
-}
-
-$loggingEvents = [System.Collections.ArrayList]::new()
+# An event goes straight to the Kafka topic, where demo/06_eventstreaming.ps1 reads it. It used to
+# be collected in a list and written to a MinIO bucket as a log archive every twelve seconds, which
+# is why there was a schedule for it; a topic needs no schedule and no batching.
+#
+# Only events that carry -Details are sent. The ones without are scheduling chatter, and the
+# archive only had them because an archive is a log file. A topic somebody is going to replay is
+# better off without them. This is the shape docker/photoservice-app.py uses - keep the two in step.
 function Add-LoggingEvent {
     param (
         [string]$Level = 'INFO',
@@ -112,24 +115,30 @@ function Add-LoggingEvent {
         [string]$Message,
         [object]$Details
     )
+    Write-PSFMessage -Level Host -Message "[$Component] $Message"
+
+    if (-not $Details) {
+        return
+    }
+
     $loggingEvent = [ordered]@{
         Timestamp = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
         Hostname  = hostname
-        Appname   = 'PictureService'
+        Appname   = 'PhotoService'
         Component = $Component
         Level     = $Level
         Message   = $Message
+        Details   = $Details
     }
-    if ($Details) {
-        $loggingEvent.Details = $Details
-    }
-    $null = $loggingEvents.Add($loggingEvent)
+    Write-KfkTopic -Connection $dbConfig.KfkProducer -Topic $topic -Data ([PSCustomObject]$loggingEvent)
 }
 
 
 Write-PSFMessage -Level Host -Message 'Starting Loop'
 while ($true) {
-    Add-LoggingEvent -Message 'Starting Loop'
+    # No event for the loop itself. There used to be one, logged every 100 milliseconds, and it
+    # only made sense while these went into a log archive - demo 4 then had to skip it by name
+    # when reading the archive back. docker/photoservice-app.py has never had it.
 
     if ((Get-Date) -gt $newCustomer.NextRun) {
         Add-LoggingEvent -Component Customer -Message 'Starting NewCustomer'
@@ -217,7 +226,10 @@ while ($true) {
             Price     = $price
         }
         Write-MdbCollection -Connection $dbConfig.MdbConnection -Collection Orders -Data $orderDocument
-        Add-LoggingEvent -Component Order -Message 'Added order to MongoDB collection' -Details $orderDocument
+        # No details on purpose, so this stays a console line and does not reach the topic. The
+        # whole order document is already on it as a header and its details, and the sibling's
+        # photoservice-app.py passes no details here either - the two topics have to match.
+        Add-LoggingEvent -Component Order -Message "Added order $($orderHeader.id) to the MongoDB collection"
 
         $newOrder.NextId++
         $newOrder.NextRun = (Get-Date).AddSeconds($newOrder.DelaySec)
@@ -268,17 +280,9 @@ while ($true) {
         Add-LoggingEvent -Component Shipment -Message "Scheduled next shipment for $($newShipment.NextRun)"
     }
 
-    if ((Get-Date) -gt $newLogging.NextRun) {
-        Add-LoggingEvent -Message 'Starting NewLogging'
-
-        $loggingKey = '{0}/{1}/{2}.log' -f $(hostname), (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd"), (Get-Date).ToUniversalTime().ToString("HH-mm-ss")
-        $loggingContent = $loggingEvents | ConvertTo-Json -Depth 9 -Compress
-        Set-MioFile -Connection $dbConfig.MioConnection -Key $loggingKey -Content $loggingContent
-        $loggingEvents.Clear()
-
-        $newLogging.NextRun = (Get-Date).AddSeconds($newLogging.DelaySec)
-        Add-LoggingEvent -Component Logging -Message "Scheduled next logging archive for $($newLogging.NextRun)"
-    }
+    # There is no logging block here any more. Events used to be collected and written to the
+    # bucket as an archive every twelve seconds, which is why they arrived in demo 4 in bursts.
+    # Add-LoggingEvent produces to the topic as it happens, so there is nothing left to schedule.
 
     Start-Sleep -Milliseconds 100
 }

@@ -32,26 +32,28 @@ probably right. If it adds abstraction, indirection or defensive layers, it is p
 
 ## Current state — read this before assuming anything works
 
-All five scenarios work and have been presented. What follows is what is *known* and unfinished, so
+All five scenarios work and have been presented, and a sixth - Event streaming - was added on 2026-08-15 and has not been presented yet. What follows is what is *known* and unfinished, so
 that it is not rediscovered as a new finding and not fixed as a side effect of an unrelated task.
 
 | Area | State |
 | --- | --- |
 | `demo/01_timesheets.ps1` … `05_projectstatus.ps1` | Complete. Stepped through section by section, never run. |
-| `lib/` | 35 functions. The grid in `lib/README.md` says which cells are deliberately empty. |
+| `demo/06_eventstreaming.ps1` | New on 2026-08-15 and **not yet stepped through by the owner**. Its logic was run end to end against live containers and the replay was compared value by value against PostgreSQL, but the narration has not been read aloud once. |
+| `lib/` | 40 functions. The grid in `lib/README.md` says which cells are deliberately empty. |
 | The setup chain | `01_setup.ps1` **builds only** — it stops the containers at the end, so it can be run in this repository and then in the sibling, in either order. `start_demo.ps1` is what starts a demo. See "01_setup.ps1 builds, start_demo.ps1 runs" below. |
 | `06_test_connections.ps1` | Run **twice** by `01_setup.ps1`: once inside WSL2 and once on Windows, because the demos run from Windows and nothing else checks that side. One block per scenario and per provider. |
-| MinIO | **Scheduled to leave the lab**, entry 9 of `SIBLING-FINDINGS.md`. It changed its licence, and uploading files is a different question from the one every other provider here answers. Do not build anything new on it. **The five `lib/*-Mio*.ps1` files are being kept, not deleted** — the container, its init script, the policies and the `.env` block go, and `lib/README.md` carries a worked example of all five functions so the code stays usable. That section is also where the hand-rolled signing is explained: it is **AWS Signature Version 2** — HMAC-SHA1, `Authorization: AWS key:sig` — and *not* SigV4, which this file and `SIBLING-FINDINGS.md` both claimed until 2026-08-15. |
-| Event streaming | The PhotoService demo's *"Transfer data from logging (or kafka)"* section reads the application's log archives out of MinIO. The sibling has replaced that with a real Kafka demo served by Redpanda; porting it back here is entry 10 of `SIBLING-FINDINGS.md`, including four things learned the hard way over there. |
+| MinIO | **Gone from the lab as of 2026-08-15**, entry 9 of `SIBLING-FINDINGS.md`, closed. The container, its init script, the two policies and the `.env` block are deleted, and no demo or setup script mentions it. **The five `lib/*-Mio*.ps1` files are deliberately kept** — `lib/README.md` has a *"MinIO is on its way out of the lab"* section with a worked example of all five functions, which is the archive that entry asked for. That section also explains the hand-rolled signing: it is **AWS Signature Version 2** — HMAC-SHA1, `Authorization: AWS key:sig` — and *not* SigV4, which this file and `SIBLING-FINDINGS.md` both claimed until then. Do not build anything new on it, and do not delete it either. |
+| Event streaming | `demo/06_eventstreaming.ps1`, added 2026-08-15 — entry 10 of `SIBLING-FINDINGS.md`, closed. Redpanda serves the Kafka API, `docker/photoservice-app.ps1` produces an event per real action to `photoservice.events`, and the demo replays them into SQL Server both incrementally and from scratch. It replaces the *"Transfer data from logging (or kafka)"* section of demo 4, which read log archives out of a bucket. The five `lib/*-Kfk*.ps1` functions are the counterpart of the sibling's `kfk` column, so the two repositories can be shown side by side for it. |
 | `lib/Write-PgTable.ps1` | Loads through `COPY`, using Npgsql's `BeginTextImport` — the counterpart of the `SqlBulkCopy` and `OracleBulkCopy` its two siblings use. Entry 3 of `SIBLING-FINDINGS.md`, **closed 2026-08-15**. The copy format is text, so `DateTime` and `byte[]` are formatted by hand and `-BatchSize` only paces the progress bar; read the notes in `lib/README.md` before touching any of that. |
 | `docker/photoservice-app.ps1` | The shop that keeps inventing customers and orders. **It is the source of everything the second half of demo 04 transfers**, so those cells have nothing to find unless this container is running — and it staggers its work over the first two minutes after it starts: the first order at 60 s, the first payment at 90 s, the first shipment at 120 s. `docker compose restart photoservice` is the cheap reset, and it restarts that clock. Keep the schedule in step with the sibling's `photoservice-app.py`. |
 | The Azure SQL bonus sections | At the end of `demo/02_stackexchange.ps1` and `demo/04_photoservice.ps1`. They need Azure resources, the `Az` module, a firewall rule and two environment variables, so they are not local and are not part of a normal run. |
 
 ## Demo scripts are stepped through, never run
 
-`demo/01_timesheets.ps1`, `02_stackexchange.ps1`, `03_geodata.ps1`, `04_photoservice.ps1` and
-`05_projectstatus.ps1` all begin with a bare `break` on line 1. That is deliberate: the file is opened in
-VS Code and executed section by section (F8 on a selection), telling a story as it goes.
+`demo/01_timesheets.ps1`, `02_stackexchange.ps1`, `03_geodata.ps1`, `04_photoservice.ps1`,
+`05_projectstatus.ps1` and `06_eventstreaming.ps1` all begin with a bare `break` on line 1. That is
+deliberate: the file is opened in VS Code and executed section by section (F8 on a selection),
+telling a story as it goes.
 
 - Never remove the `break`.
 - Never restructure a demo so it can run end to end.
@@ -164,7 +166,7 @@ publish every port at the same moment. In the sibling repository, on a clean ins
 up and 1521 was not — which failed the check while Oracle was running and answering inside WSL2 the
 whole time. The error names Oracle and means the network.
 
-`01_setup.ps1` therefore waits for the four database ports and MinIO to accept a connection from Windows before it
+`01_setup.ps1` therefore waits for the four database ports and Redpanda to accept a connection from Windows before it
 runs `06` there. The wait is silent and costs 0.1 s when the forwards are already up. **Why one port
 lags the others is not established** — do not write down a mechanism for it without evidence.
 `07_check_ports.ps1` is the diagnostic that settled it over there, and it is in this repository for the
@@ -226,7 +228,7 @@ out in `05` on purpose.
 ## The lib/ naming grid
 
 Every function is `<Verb>-<Prefix><Noun>`. The prefixes are `Sql` (SQL Server), `Ora` (Oracle),
-`Pg` (PostgreSQL), `Mdb` (MongoDB) and `Mio` (MinIO). The verb families are:
+`Pg` (PostgreSQL), `Mdb` (MongoDB), `Kfk` (Kafka) and `Mio` (MinIO, kept but no longer in the lab). The verb families are:
 
 | Family | Purpose |
 | --- | --- |

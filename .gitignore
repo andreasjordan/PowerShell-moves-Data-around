@@ -1,5 +1,8 @@
 .claude/settings.local.json
 lib/*.dll
+# Kafka's native library, downloaded by Import-KfkLibrary. Windows and Linux both put their build
+# here, so this directory holds a .so as well as the .dll - never commit either.
+lib/*.so
 data/timesheets/*.xlsx
 data/stackexchange/*.xml
 data/geodata/*.gpx

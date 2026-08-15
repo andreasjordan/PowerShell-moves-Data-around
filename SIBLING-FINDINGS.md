@@ -231,109 +231,90 @@ others is not established** — do not write down a mechanism for it without evi
 
 ---
 
+## 9. Remove MinIO — **done**
+
+MinIO is out of the lab as of 2026-08-15, together with entry 10 and in the same change, which is the
+order this section argued for: the application could not stop writing to the bucket until it had
+somewhere else to write.
+
+Deleted: the `minio` service, `minio-init.sh`, both policy files and the `.env` block; the upload loop
+in `05_sample_data_setup.ps1` and the connection above it, which was the only thing there that needed
+`lib/` at all; the connections in both `init_*.ps1` and in `06_test_connections.ps1`; the two ports in
+`07_check_ports.ps1` and the one in the port wait of `01_setup.ps1`; the bucket section at the end of
+`demo/02_stackexchange.ps1`; and both MinIO sections of `demo/04_photoservice.ps1`.
+
+**The five `lib/*-Mio*.ps1` functions are kept, and that is the decision this entry was missing.** It
+asked where to put the hand-rolled signing before `git rm` took it. The answer is `lib/README.md`,
+which now has a *"MinIO is on its way out of the lab"* section with a worked example of all five
+functions, assembled from the call sites listed above before they were deleted. Worth knowing: no demo
+ever called `Set-MioFile`, so a reader following the demos never saw half the surface.
+
+**It was never SigV4.** `Connect-MioInstance` signs with **AWS Signature Version 2** — HMAC-SHA1 over
+`verb \n content-md5 \n content-type \n date \n /bucket/key`, base64, into an
+`Authorization: AWS <key>:<signature>` header. This file, `AGENTS.md` and the sibling's
+`DIFFERENCES.md` all called it SigV4. The code was always correct; only the description was wrong.
+
+**Two limits are documented now that no demo had to care about:** `-Instance` gets `:9000` appended
+unless a port is given, and the URL is built as `http://`, so it reaches a local container and not
+real S3.
+
+**In the Python port:** done long ago, and completely — no functions were kept there.
+
+## 10. Port the event streaming demo back — **done**
+
+`demo/06_eventstreaming.ps1` exists, and the `kfk` column of `lib/` with it, so the two repositories
+can be shown side by side for event streaming again.
+
+**What was built:** `Import-KfkLibrary`, `Connect-KfkProducer`, `Connect-KfkConsumer`, `Write-KfkTopic`
+and `Read-KfkTopic`; the `redpanda` and `redpanda-console` services copied from the sibling,
+advertising two listeners; the producer in `docker/photoservice-app.ps1`; and the demo.
+`Confluent.Kafka` wraps the same librdkafka the Python `confluent-kafka` package does, so the two
+demos are near-identical in shape rather than merely analogous, which was the point.
+
+**The four traps transferred, and all four were met:**
+
+1. **Two advertised listeners.** Copied from the sibling's compose file unchanged.
+2. **Reading a live topic without a bound never returns.** `Read-KfkTopic` takes `-First` and
+   `-Timeout`, and the demo asks the broker for the high watermark before replaying.
+3. **`auto.offset.reset` only applies to a group with no committed offset.** Proven against the live
+   broker: a new group with `-FromBeginning` read all 50 messages, the same group id read 0 the second
+   time, and a different group id read all 50 again.
+4. **The two-minute clock.** Said at the top of the demo and in `README.md`.
+
+**Four things the .NET client forced that the Python one did not, none of them in the entry:**
+
+- **`Import-KfkLibrary` fetches two packages, not one.** Kafka is the first driver here that is not
+  pure .NET: `Confluent.Kafka` is the managed wrapper and `librdkafka.redist` carries the native
+  library, which has to sit in the same directory as the managed assembly.
+- **`lib/` is shared by Windows, WSL2 and the container.** The native file is named differently on
+  each, so both live there at once and the two downloads are guarded separately.
+- **On Linux the plain `librdkafka.so` cannot be loaded at all.** It links `libsasl2.so.3` and Ubuntu
+  ships `libsasl2.so.2`. The `centos8` build in the same package has everything linked in, so it is
+  used instead — which is why no apt package had to be added to WSL2 or the container.
+- **There is no `producer.list_topics()`.** Metadata belongs to the admin client in .NET, so both
+  connect functions build a dependent admin client to prove the broker answers.
+
+**Also aligned with the sibling while there:** the application's `Appname` said `PictureService` and
+now says `PhotoService`; only events carrying details reach the topic, so scheduling chatter stays on
+the console; the per-iteration `Starting Loop` event is gone, which used to be produced every 100
+milliseconds and which demo 4 had to skip by name; and `Added order to MongoDB collection` no longer
+carries details, because the sibling does not put it on the topic either.
+
+**Verified against live containers**, not by reading: 14 checks on the five functions, including a
+value-by-value round trip of nested messages; then the demo itself run end to end, and the replayed
+tables compared to PostgreSQL row by row — 156 customers, 766 order headers and 10522 order details,
+**0 differences** on every column, with 742 payment and 717 shipment uuids actually compared so the
+fold was doing work. The narration has not been stepped through by the owner yet.
+
+---
+
 # Open
 
-**Agreed order: 3, then 10, then 9** (2026-08-15). **3 is done**, so what is left is 10, then 9:
+**Nothing.** Entries 3, 9 and 10 were the last three and all closed on 2026-08-15. The one thing
+outstanding is not work on this list: `demo/06_eventstreaming.ps1` is new narration the owner has
+not stepped through yet.
 
-- **10 is the long pole** and the one that needs the owner afterwards, because a new demo script is
-  narration he has to walk through.
-- **9 is last because it depends on 10.** `photoservice-app.ps1` writes its logging archive to the
-  bucket; removing MinIO before the Kafka producer exists stops the application emitting events at all,
-  which silently empties the second half of demo 4. Doing 9 first is tempting — it deletes the most —
-  and it is the one order that breaks something.
-
-Each of these rewrites demo narration the owner has to step through, so **ask before starting one**.
-
-## 9. Remove MinIO
-
-**Where:** `lib/*-Mio*.ps1`, `docker/`, `05_sample_data_setup.ps1`, `demo/02_stackexchange.ps1`,
-`demo/04_photoservice.ps1`, `demo/init_stackexchange.ps1`, `demo/init_photoservice.ps1`,
-`06_test_connections.ps1`, `docker/photoservice-app.ps1`
-
-MinIO comes out for two reasons, either of which would have been enough: it **changed its licence**, and
-it is **not what this repository is about** — every other provider here answers the question "how do rows
-get into and out of a database, and what happens to their types on the way", while MinIO answers "how
-does a file get uploaded and downloaded".
-
-**What that touches:**
-
-- The five functions: `Connect-MioInstance`, `Get-MioFile`, `Get-MioFileList`, `Set-MioFile`,
-  `Remove-MioFile`.
-- The `minio` service in `docker/docker-compose.yaml`, plus `minio-init.sh`, the two policy files and
-  the `.env` block.
-- The upload block in `05_sample_data_setup.ps1` and the two ports in `07_check_ports.ps1`.
-- The bucket section at the end of `demo/02_stackexchange.ps1`.
-- In `demo/04_photoservice.ps1`: *"Transfer data from logging (or kafka)"* and the
-  *"Bonus: Import Logging from files on MinIO"* section. The first of those does **not** simply
-  disappear — see entry 10, which is where it goes.
-- `photoservice-app.ps1` writes its logging archive to the bucket, and clears the bucket at startup.
-  That has to become the Kafka producer of entry 10, or the application stops emitting events at all.
-
-**Decided on 2026-08-15: the code is kept, only the lab loses it.** The five `lib/*-Mio*.ps1` files stay
-where they are, and `lib/README.md` has a *"MinIO is on its way out of the lab"* section with a worked
-example of all five functions, assembled from the call sites listed above before they are removed. So
-the list above is what goes: the container, the init script, the two policies, the `.env` block, the
-setup and demo call sites — not the functions.
-
-That settles what this entry used to leave open, which was where to put the hand-rolled signing before
-`git rm` took it. **It is also not what this file said it was.** `Connect-MioInstance` signs with
-**AWS Signature Version 2** — `HMACSHA1` over `verb \n content-md5 \n content-type \n date \n
-/bucket/key`, base64, into an `Authorization: AWS <key>:<signature>` header. Both this entry and
-`AGENTS.md` called it SigV4, which builds a canonical request and derives a signing key through four
-chained HMAC-SHA256 rounds and looks nothing like this. Corrected in both places; the code is unchanged
-and was always correct SigV2.
-
-**In the Python port:** done, completely. No demo uses it, the user-facing documentation does not mention
-it, and the service, its init script, both policy files and the `.env` block have been deleted. Use that
-side as the worked example of what to remove.
-
-## 10. Port the event streaming demo back
-
-**Where:** new — the counterpart of `demo/06_eventstreaming.ipynb` and the `kfk` functions over there
-
-The Python repository now has a Kafka demo, served by Redpanda, and it is the only thing there with no
-PowerShell counterpart. It exists because dropping MinIO also dropped the event streaming story, which
-was collateral damage from a decision about *object storage* — and this repository's own section title,
-*"Transfer data from logging (or kafka)"*, says what the real answer always was.
-
-**The good news, and it decides the approach:** the .NET client `Confluent.Kafka` wraps **librdkafka**,
-which is the same C library the Python `confluent-kafka` package wraps. The two demos would be
-near-identical in shape rather than merely analogous — which is the whole point of the two repositories.
-And the mechanism is already here: `Import-PgLibrary` and `Import-OraLibrary` download ADO.NET DLLs from
-nuget.org at runtime, so **`Import-KfkLibrary` follows that pattern exactly**, with no new idea required.
-
-**What to build:**
-
-| There | Here |
-| --- | --- |
-| `connect_kfk_producer` | `Connect-KfkProducer` |
-| `connect_kfk_consumer` | `Connect-KfkConsumer` |
-| `write_kfk_topic` | `Write-KfkTopic` |
-| `read_kfk_topic` | `Read-KfkTopic` |
-
-Two connect functions rather than one, because Kafka has no single connection object — a producer and a
-consumer are different clients. That is worth keeping on both sides.
-
-Plus: the `redpanda` and `redpanda-console` services in `docker/docker-compose.yaml` (copy them from
-there), the producer calls in `photoservice-app.ps1`, and a `demo/06_eventstreaming.ps1`.
-
-**Four things learned the hard way over there, all of which transfer:**
-
-1. **Advertise two listeners.** The application container reaches the broker as `redpanda:9092` on the
-   compose network; the demo reaches it from Windows as `127.0.0.1:19092`. A broker advertises the
-   address a client should come back on, so it has to advertise both. Getting this wrong is the classic
-   Kafka-in-Docker trap.
-2. **Reading a live topic without a bound never returns.** A stopping rule of "n seconds with no new
-   message" never fires while the shop is producing. Ask the broker for the high watermark and read
-   exactly that many. This hung a kernel over there, and interrupting a process inside librdkafka is
-   unreliable — it had to be killed.
-3. **`auto.offset.reset` only applies to a consumer group that has no committed offset.** There is no
-   "start again" setting; starting again means a new group id. In a demo that gets re-run constantly this
-   shows up as "the cell returned nothing the second time" rather than as an error.
-4. **The application truncates its tables at startup and staggers its work over the first two minutes.**
-   A demo run inside that window shows an empty topic and zero counts, and looks broken when it is not.
-   It was twenty minutes when this was written; entry 17 shortened it on both sides on 2026-08-15, which
-   is most of what made this trap painful.
+New entries go here, or under "For the other side" when they point at the Python repository.
 
 ---
 
@@ -568,10 +549,39 @@ Two practical notes, the first of which caught us:
 
 ---
 
+## 19. The two applications store `created_at` two hours apart — **open, points both ways**
+
+**Where:** `docker/photoservice-app.ps1` here and `docker/photoservice-app.py` in the **Python**
+repository, and the `order_header.created_at` / `updated_at` columns both of them write
+
+**What:** both applications take a local timestamp — `[datetime]::Now` and `datetime.now()` — and both
+write it to a PostgreSQL `TIMESTAMP(3)` column, which has no time zone. The drivers then disagree.
+psycopg writes a naive local datetime through unchanged, so the sibling's PostgreSQL holds **local**
+time. Npgsql converts a `DateTime` whose `Kind` is `Local` to UTC on the way in, so this repository's
+PostgreSQL holds **UTC** — two hours earlier on this machine.
+
+**Measured on 2026-08-15**, comparing the SQL Server tables that `demo/06_eventstreaming.ps1` rebuilt
+from the topic against PostgreSQL, over 766 order headers: every row differed by exactly **120
+minutes**, which is this machine's UTC offset, and nothing else differed at all. Compared as instants
+the two agree to the millisecond on all 766.
+
+**Why it is worth an entry rather than a shrug.** The whole point of the two repositories is the same
+data shown through two languages side by side. Same application, same schema, same column — and one
+holds `18:23:56` while the other holds `16:23:56`. Nobody looking at pgAdmin on the two machines would
+expect that, and no narration mentions it.
+
+**It also shows up inside this repository alone**, which is how it was found: the event carries the
+local time with its offset, so a replay through Kafka lands `18:23:56` in SQL Server while a direct
+PostgreSQL → SQL Server transfer in demo 4 lands `16:23:56`. Both are the same instant; neither path
+is wrong on its own; they simply disagree about what the column means.
+
+**Not fixed, deliberately.** It is older than the Kafka work and fixing it is a decision, not a
+tidy-up: either this side pins `Kind` to `Unspecified` before binding so Npgsql stops converting, or
+both sides move to UTC everywhere, or the columns become `TIMESTAMPTZ`. The first matches the sibling
+and is the smallest change; the last is the only one that makes the ambiguity impossible. It touches
+demo 4's data on this side either way, so it wants the owner.
+
+---
+
 Add an entry above when something is found in this repository that belongs in the Python one, and say
 plainly which direction it points — the file is read from both sides.
-
-One thing is worth carrying over when it is done here, because it changes the sibling too:
-
-- **MinIO and Kafka**, entries 9 and 10 above. Until they are done, the two repositories cannot be shown
-  side by side for those sections, because one side is empty.

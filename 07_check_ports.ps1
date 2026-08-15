@@ -22,8 +22,8 @@ $ports = [ordered]@{
     '1521'  = 'Oracle'
     '5432'  = 'PostgreSQL'
     '27017' = 'MongoDB'
-    '9000'  = 'MinIO'
-    '9001'  = 'MinIO Console'
+    '19092' = 'Redpanda (Kafka)'
+    '8080'  = 'Redpanda Console'
     '5050'  = 'pgAdmin'
 }
 

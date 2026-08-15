@@ -21,7 +21,7 @@ meant to be shown next to each other, and they are meant to live in the same WSL
 - Oracle database
 - PostgreSQL
 - MongoDB
-- MinIO
+- Apache Kafka (Redpanda)
 - Microsoft Excel
 - JSON files
 - XML files
@@ -81,11 +81,10 @@ I have recorded a [Video](https://youtu.be/UnTFhbC3JVE) of the demo.
 
 ### StackExchange
 
-- Setup: XML files will be downloaded from archive.org/download/stackexchange and uploaded to MinIO
+- Setup: XML files will be downloaded from archive.org/download/stackexchange
 - Data from XML files will be imported into SQL Server database
 - Data will be streamed between databases and database systems
 - Data from XML files will be imported into MongoDB database
-- XML files will be downloaded from MinIO
 
 This scenario needs PowerShell 7.
 
@@ -114,7 +113,10 @@ This scenario needs PowerShell 7.
 - Only new data is transfered
 - Updated data is transfered
 - Transactions are used to ensure data integrity
-- Event data is used to update tables in SQL Server
+- Change Data Capture is used to find what changed
+
+The application's own events used to be read back from a MinIO bucket in this scenario. They are on
+a Kafka topic now, and that half of the demo has become its own scenario - see Event streaming below.
 
 This scenario needs PowerShell 7.
 
@@ -122,6 +124,23 @@ The application container is the source of every customer and order the second h
 transfers, and it staggers its work over the first two minutes after it starts: the first order at
 60 seconds, the first payment at 90, the first shipment at 120. Give it that couple of minutes before
 expecting anything to be there - inside that window the demo looks broken and is not.
+
+
+### Event streaming
+
+- Setup: The PhotoService application is running inside of a container and produces an event to a Kafka topic whenever something happens
+- The `order_event` outbox table shows the pattern you may already have, and where its limits are
+- The same events are read from the topic with a consumer group
+- The events are replayed into SQL Server, incrementally, using the group's committed offsets
+- A second consumer group with no history rebuilds the target from the whole topic
+- The high watermark is what makes "read everything" terminate on a topic that is still being written to
+
+This scenario needs PowerShell 7.
+
+Kafka is served by [Redpanda](https://www.redpanda.com/), which speaks the Kafka protocol, so every
+client and every word in the demo is Kafka. The same two-minute wait as PhotoService applies, and
+more strictly: this demo reads the events rather than the tables, so before the first order there is
+nothing on the topic but `Added customer`.
 
 
 ### ProjectStatus
@@ -142,11 +161,11 @@ This scenario can be run with both PowerShell 5.1 and PowerShell 7.
 
 The repository is designed for and tested on a Windows 11 system with 32 GB of RAM. WSL2 is configured with Docker to run the databases inside containers.
 
-These containers are used: SQL Server 2025, Oracle Database Express Edition 21c, PostgreSQL with PostGIS, pgAdmin, MongoDB, MinIO, and one running the PhotoService application. The exact image versions are pinned in `docker/docker-compose.yaml`.
+These containers are used: SQL Server 2025, Oracle Database Express Edition 21c, PostgreSQL with PostGIS, pgAdmin, MongoDB, Redpanda with its console, and one running the PhotoService application. The exact image versions are pinned in `docker/docker-compose.yaml`.
 
 Two of the containers have a web interface:
 
-- MinIO: http://127.0.0.1:9001/login
+- Redpanda Console: http://127.0.0.1:8080
 - pgAdmin: http://127.0.0.1:5050/browser/
 
 All accounts use the same password. As this is a demo environment that only runs locally, the password

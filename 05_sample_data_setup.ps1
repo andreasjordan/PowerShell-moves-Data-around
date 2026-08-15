@@ -7,15 +7,12 @@ param (
 
 $ErrorActionPreference = 'Stop'
 
-$hostname = '127.0.0.1'
-
 Import-Module PSFramework
 Import-Module ImportExcel 3>$null
-Write-PSFMessage -Level Host -Message 'Importing PowerShell functions'
-foreach ($file in (Get-ChildItem -Path $PSScriptRoot/lib/*-*.ps1)) { . $file.FullName }
-$PSDefaultParameterValues = @{
-    "*-Mio*:EnableException" = $true
-}
+
+# Nothing from lib/ is dot-sourced here any more. This script used to upload the StackExchange
+# files to a MinIO bucket, which was the only reason it needed the data access layer at all;
+# it creates and downloads sample data and touches no database.
 
 
 # A helper for the four downloads below. It lives here rather than in lib/, so it does not follow
@@ -117,18 +114,11 @@ foreach ($department in $departments) {
 
 # StackExchange
 # XML files will be downloaded from archive.org/download/stackexchange
-# XML files will be uploaded to MinIO
-Write-PSFMessage -Level Host -Message 'Setting up variables and connections for StackExchange'
+Write-PSFMessage -Level Host -Message 'Setting up variables for StackExchange'
 $stackexchange = @{
-    MioInstance = $hostname
-    MioUser     = 'stackexchange'
-    MioPassword = 'Passw0rd!'
-    MioBucket   = 'stackexchange'
-    Site        = 'dba.meta'
-    DataPath    = 'data/stackexchange'
+    Site     = 'dba.meta'
+    DataPath = 'data/stackexchange'
 }
-$stackexchange.MioCredential = [PSCredential]::new($stackexchange.MioUser, ($stackexchange.MioPassword | ConvertTo-SecureString -AsPlainText -Force))
-$stackexchange.MioConnection = Connect-MioInstance -Instance $stackexchange.MioInstance -Credential $stackexchange.MioCredential -Bucket $stackexchange.MioBucket
 
 # "Are there any XML files" is a coarse check on purpose. It does not notice a half extracted
 # archive, and should not try to - -Force is the answer to that, and a setup script that models
@@ -148,13 +138,6 @@ if ($xmlFiles.Count -gt 0 -and -not $Force) {
     }
     Remove-Item -Path tmp.7z
     Pop-Location
-}
-
-# The upload runs either way, because the bucket is empty again after a "docker compose down -v"
-Write-PSFMessage -Level Host -Message 'Importing StackExchange data to MinIO'
-$files = Get-ChildItem -Path $stackexchange.DataPath
-foreach ($file in $files) {
-    Set-MioFile -Connection $stackexchange.MioConnection -Key $file.Name -InFile $file.FullName
 }
 
 

@@ -13,12 +13,13 @@ foreach ($file in (Get-ChildItem -Path $PSScriptRoot/lib/*-*.ps1)) { . $file.Ful
 Write-PSFMessage -Level Host -Message 'Importing database libraries'
 Import-OraLibrary
 Import-PgLibrary
+Import-KfkLibrary
 $PSDefaultParameterValues = @{
     "*-Sql*:EnableException" = $true
     "*-Ora*:EnableException" = $true
     "*-Pg*:EnableException"  = $true
     "*-Mdb*:EnableException" = $true
-    "*-Mio*:EnableException" = $true
+    "*-Kfk*:EnableException" = $true
 }
 
 Write-PSFMessage -Level Host -Message 'Setting up variables and connections for Timesheets'
@@ -49,10 +50,6 @@ $stackexchange = @{
     MdbUser     = 'stackexchange'
     MdbPassword = 'Passw0rd!'
     MdbDatabase = 'stackexchange'
-    MioInstance = $hostname
-    MioUser     = 'stackexchange'
-    MioPassword = 'Passw0rd!'
-    MioBucket   = 'stackexchange'
 }
 $stackexchange.SqlCredential = [PSCredential]::new($stackexchange.SqlLogin, ($stackexchange.SqlPassword | ConvertTo-SecureString -AsPlainText -Force))
 $stackexchange.SqlConnection = Connect-SqlInstance -Instance $stackexchange.SqlInstance -Credential $stackexchange.SqlCredential -Database $stackexchange.SqlDatabase
@@ -62,8 +59,6 @@ $stackexchange.PgCredential = [PSCredential]::new($stackexchange.PgUser, ($stack
 $stackexchange.PgConnection = Connect-PgInstance -Instance $stackexchange.PgInstance -Credential $stackexchange.PgCredential -Database $stackexchange.PgDatabase
 $stackexchange.MdbCredential = [PSCredential]::new($stackexchange.MdbUser, ($stackexchange.MdbPassword | ConvertTo-SecureString -AsPlainText -Force))
 $stackexchange.MdbConnection = Connect-MdbInstance -Instance $stackexchange.MdbInstance -Credential $stackexchange.MdbCredential -Database $stackexchange.MdbDatabase
-$stackexchange.MioCredential = [PSCredential]::new($stackexchange.MioUser, ($stackexchange.MioPassword | ConvertTo-SecureString -AsPlainText -Force))
-$stackexchange.MioConnection = Connect-MioInstance -Instance $stackexchange.MioInstance -Credential $stackexchange.MioCredential -Bucket $stackexchange.MioBucket
 
 
 Write-PSFMessage -Level Host -Message 'Setting up variables and connections for Geodata'
@@ -102,10 +97,9 @@ $photoservice = @{
     MdbUser     = 'photoservice'
     MdbPassword = 'Passw0rd!'
     MdbDatabase = 'photoservice'
-    MioInstance = $hostname
-    MioUser     = 'photoservice'
-    MioPassword = 'Passw0rd!'
-    MioBucket   = 'photoservice'
+    # The port published to Windows. Inside WSL2 this run reaches the same broker over the WSL2
+    # loopback, which is the published port too - only the application uses redpanda:9092.
+    KfkInstance = "${hostname}:19092"
 }
 $photoservice.SqlCredential = [PSCredential]::new($photoservice.SqlLogin, ($photoservice.SqlPassword | ConvertTo-SecureString -AsPlainText -Force))
 $photoservice.SqlConnection = Connect-SqlInstance -Instance $photoservice.SqlInstance -Credential $photoservice.SqlCredential -Database $photoservice.SqlDatabase
@@ -113,8 +107,8 @@ $photoservice.PgCredential = [PSCredential]::new($photoservice.PgUser, ($photose
 $photoservice.PgConnection = Connect-PgInstance -Instance $photoservice.PgInstance -Credential $photoservice.PgCredential -Database $photoservice.PgDatabase
 $photoservice.MdbCredential = [PSCredential]::new($photoservice.MdbUser, ($photoservice.MdbPassword | ConvertTo-SecureString -AsPlainText -Force))
 $photoservice.MdbConnection = Connect-MdbInstance -Instance $photoservice.MdbInstance -Credential $photoservice.MdbCredential -Database $photoservice.MdbDatabase
-$photoservice.MioCredential = [PSCredential]::new($photoservice.MioUser, ($photoservice.MioPassword | ConvertTo-SecureString -AsPlainText -Force))
-$photoservice.MioConnection = Connect-MioInstance -Instance $photoservice.MioInstance -Credential $photoservice.MioCredential -Bucket $photoservice.MioBucket
+$photoservice.KfkProducer = Connect-KfkProducer -Instance $photoservice.KfkInstance
+$photoservice.KfkProducer.Dispose()
 
 
 Write-PSFMessage -Level Host -Message 'Setting up variables and connections for ProjectStatus'
@@ -130,5 +124,5 @@ $projectstatus.SqlConnection = Connect-SqlInstance -Instance $projectstatus.SqlI
 
 Write-PSFMessage -Level Host -Message 'Finished'
 
-Write-PSFMessage -Level Host -Message 'MinIO: http://127.0.0.1:9001/login'
+Write-PSFMessage -Level Host -Message 'Redpanda Console: http://127.0.0.1:8080/topics'
 Write-PSFMessage -Level Host -Message 'pgAdmin: http://127.0.0.1:5050/browser/'

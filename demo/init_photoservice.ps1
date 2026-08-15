@@ -14,6 +14,7 @@ foreach ($file in (Get-ChildItem -Path ../lib/*-*.ps1)) { . $file.FullName }
 Write-PSFMessage -Level Host -Message 'Importing database libraries'
 Import-OraLibrary
 Import-PgLibrary
+Import-KfkLibrary
 
 Write-PSFMessage -Level Host -Message 'Setting up variables and connections for PhotoService'
 $photoservice = @{
@@ -29,10 +30,9 @@ $photoservice = @{
     MdbUser     = 'photoservice'
     MdbPassword = 'Passw0rd!'
     MdbDatabase = 'photoservice'
-    MioInstance = $hostname
-    MioUser     = 'photoservice'
-    MioPassword = 'Passw0rd!'
-    MioBucket   = 'photoservice'
+    # The port published to Windows, not the one the application uses on the compose network
+    KfkInstance = "${hostname}:19092"
+    KfkTopic    = 'photoservice.events'
 }
 $photoservice.SqlCredential = [PSCredential]::new($photoservice.SqlLogin, ($photoservice.SqlPassword | ConvertTo-SecureString -AsPlainText -Force))
 $photoservice.SqlConnection = Connect-SqlInstance -Instance $photoservice.SqlInstance -Credential $photoservice.SqlCredential -Database $photoservice.SqlDatabase
@@ -40,7 +40,7 @@ $photoservice.PgCredential = [PSCredential]::new($photoservice.PgUser, ($photose
 $photoservice.PgConnection = Connect-PgInstance -Instance $photoservice.PgInstance -Credential $photoservice.PgCredential -Database $photoservice.PgDatabase
 $photoservice.MdbCredential = [PSCredential]::new($photoservice.MdbUser, ($photoservice.MdbPassword | ConvertTo-SecureString -AsPlainText -Force))
 $photoservice.MdbConnection = Connect-MdbInstance -Instance $photoservice.MdbInstance -Credential $photoservice.MdbCredential -Database $photoservice.MdbDatabase
-$photoservice.MioCredential = [PSCredential]::new($photoservice.MioUser, ($photoservice.MioPassword | ConvertTo-SecureString -AsPlainText -Force))
-$photoservice.MioConnection = Connect-MioInstance -Instance $photoservice.MioInstance -Credential $photoservice.MioCredential -Bucket $photoservice.MioBucket
+# No consumer here: a consumer belongs to a group, and demo/06_eventstreaming.ps1 makes a new
+# group id part of what it demonstrates
 
 Write-PSFMessage -Level Host -Message 'Finished'
