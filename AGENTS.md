@@ -15,8 +15,13 @@ worth knowing before touching anything:
 
 - The Python repository is the one that has been driven against live containers most recently, and it
   found real defects in this one. Its `SIBLING-FINDINGS.md` is the work list for a session opened here.
-- **When something is wrong in the sibling repository, append an entry to `SIBLING-FINDINGS.md` here**
-  rather than fixing it there.
+- **When something is wrong in the sibling repository and you cannot reach it, append an entry to
+  `SIBLING-FINDINGS.md` here** rather than fixing it there. That is the rule for a session opened in
+  this repository alone, which is the usual case. **If both repositories are open** — a VS Code
+  workspace holding the two of them, so the Python repository is a working directory and not just a
+  path — then fix it in place instead, and commit per repository. `SIBLING-FINDINGS.md` is then the
+  queue for what is deliberately deferred, not a way of routing work across a wall. Say which of the
+  two situations you are in before the first change on the other side.
 - The sibling keeps the reasoning behind every place the two differ in its `DIFFERENCES.md`. When a
   change here would make a documented difference wrong, say so — nobody on the other side will notice
   on their own.
