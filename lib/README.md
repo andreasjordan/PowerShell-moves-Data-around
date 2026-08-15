@@ -67,10 +67,26 @@ Prefixes: **Sql** = SQL Server · **Ora** = Oracle · **Pg** = PostgreSQL · **M
 | --- | --- |
 | `Write-SqlTable` / `Write-OraTable` / `Write-PgTable` | Bulk-load either `-Data` (objects) or `-DataReader` (streaming) into `-Table`. `-BatchSize` defaults to 1000, `-TruncateTable` empties first, `-Transaction` is supported. Reports progress with `Write-Progress -Id 1`. |
 
-The three writers are siblings from the outside and not underneath: `Write-SqlTable` uses `SqlBulkCopy`
-and `Write-OraTable` uses `OracleBulkCopy`, but `Write-PgTable` fills a `DataTable` and lets an
-`NpgsqlDataAdapter` generate the `INSERT` statements. PostgreSQL's own bulk path, `COPY`, is not used —
-the Python port measured that at 7× slower, and replacing it is entry 3 of `SIBLING-FINDINGS.md`.
+The three writers are siblings underneath as well as from the outside: each uses its own database's
+bulk path — `SqlBulkCopy`, `OracleBulkCopy` and, since 2026-08-15, `COPY` through Npgsql's
+`BeginTextImport`. `Write-PgTable` used to fill a `DataTable` and let an `NpgsqlDataAdapter` generate
+the `INSERT` statements; that was entry 3 of `SIBLING-FINDINGS.md` and it is closed.
+
+**`-BatchSize` means something different in `Write-PgTable`.** A `COPY` is one stream, so there is
+nothing to split into batches and the parameter only says how often progress is reported. The two
+other writers still hand it to their bulk copy as a real batch size.
+
+Three more things about the PostgreSQL one, because its copy format is text and every value is
+escaped by hand:
+
+- **A `DateTime` is formatted with `ToString('o')`.** PowerShell renders numbers culture invariantly,
+  but `"$someDate"` drops the milliseconds — and on this data only a minority of rows would show it.
+- **A `byte[]` is written as `\\x…`, with the backslash doubled.** `\x` is an escape of the copy
+  format itself, so a single one makes PostgreSQL decode the hex into raw bytes instead of handing
+  the text to the `bytea` parser.
+- **A `-DataReader` whose source has a column the target has not is refused**, the same way
+  `Write-SqlTable` and `Write-OraTable` refuse it. The other direction is allowed: a target column the
+  source does not have is not named in the `COPY` at all, so it keeps its default.
 | `Write-MdbCollection` | Insert objects into a collection. `-Convert` reshapes each object, `-Id` and `-Property` control upserts. |
 | `Remove-MdbCollection` | Drop a collection. |
 

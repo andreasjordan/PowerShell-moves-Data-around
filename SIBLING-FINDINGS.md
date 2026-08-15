@@ -38,6 +38,64 @@ The `-DataReader` branch reported `"???? failed: <message>"`, which was the mess
 that is hardest to debug. It now names the step like every other `Stop-PSFFunction` in the file, and it
 passes `-Target $Table`, which it was also missing.
 
+## 3. `Write-PgTable` did not use `COPY` — **fixed**
+
+It filled a `DataTable` and let an `NpgsqlDataAdapter` with an `NpgsqlCommandBuilder` generate the
+`INSERT` statements. It now writes to Npgsql's `BeginTextImport`, which is the counterpart of the
+`SqlBulkCopy` and `OracleBulkCopy` its two siblings already used, so the three writers are siblings
+underneath as well as from the outside. The `DataTable`, the adapter and the command builder are gone.
+
+**Measured on 2026-08-15**, driving the shipped function against the live containers, same data and
+same tables before and after:
+
+| Case | `NpgsqlDataAdapter` | `COPY` |
+| --- | --- | --- |
+| `-Data`, 4512 `Comments.xml` rows | 18051 ms | **2642 ms** |
+| `-DataReader`, the same 4512 rows PostgreSQL → PostgreSQL | 14885 ms | **3589 ms** |
+| `-DataReader`, 12220 `Users` rows Oracle → PostgreSQL (demo 02 line 115) | 28388 ms | **23605 ms** |
+
+The last row is the honest one: only about five seconds of it is the write, and reading 12220 rows
+out of Oracle is the rest. Where the source is not the bottleneck the load is four to seven times
+faster.
+
+**Escaping, which is what the entry warned about.** Of the 4512 rows of `Comments.xml`, **24** carry a
+newline or a backslash in `Text` — 15 and 9, and none carries a tab, which the entry had allowed for.
+All 24 round-trip byte-exact, on both the `-Data` and the `-DataReader` path. Checked separately from
+the bulk comparison so they could not hide in 4512 rows.
+
+**Two things the escaping got wrong on the way, both found by running it:**
+
+- **`\x` is an escape of the copy format itself.** A `byte[]` written as `\x0001…` is decoded by COPY
+  into raw bytes rather than handed to the `bytea` parser as text, and the `0x00` then fails with
+  `invalid byte sequence for encoding "UTF8"`. The backslash has to be doubled.
+- **`"$value"` drops the milliseconds of a `DateTime`.** PowerShell converts numbers culture
+  invariantly — verified on this `de-DE` machine — but `"$(Get-Date)"` renders `03/01/2024 12:34:56`.
+  `DateTime` is therefore formatted with `ToString('o')`. This is the same defect the sibling's
+  `import_ora_table` had, met from the other side.
+
+**Three defects of the old implementation went with it**, none of them known before:
+
+- A string like `'9876.5432'` bound for a `NUMERIC` column arrived as **98765432**. The `DataTable`
+  parsed it in the current culture, where `.` is a thousands separator. Silent, and the worst of the
+  three. `COPY` hands the text to PostgreSQL, which has no culture.
+- `-Data` threw on a `PSObject`-wrapped integer — `Couldn't store <1> in id Column` — which is what
+  `1..3 | ForEach-Object { [PSCustomObject]@{ id = $_ } }` produces.
+- It could not write to a table created with `CREATE TABLE … (LIKE …)` at all: *"Dynamic SQL generation
+  is not supported against a SelectCommand that does not return any base table information."*
+
+**One deliberate change of behaviour, agreed with the owner:** a `-DataReader` whose source has a
+column the target has not is now refused with *"No target column for source column X found."*, which
+is what `Write-SqlTable` and `Write-OraTable` already did and what the Python `write_pg_table` does.
+
+**Verified, and the verification was verified.** 42 checks pass and none is a row count: values are
+compared column by column against `Comments.xml` and against the Oracle source, with the preconditions
+asserted first — that 24 rows really do carry the special characters, that 12179 of 12220
+`LastAccessDate` values really do carry milliseconds, that `AboutMe` is populated and contains
+newlines. Transactions were checked in both directions (a rollback leaves both tables empty, a commit
+lands both), because `photoservice-app.ps1` writes an order header and its details in one. Then the
+backslash escape was **deliberately removed and the suite re-run**: it fails with
+`22P04: missing data for column "userid"`, so the check can fail.
+
 ## 4. `04_docker_compose.sh` did not wait for the databases — **fixed**
 
 It ran `docker compose up -d` and returned. Nothing checked that SQL Server had created the demo
@@ -175,11 +233,8 @@ others is not established** — do not write down a mechanism for it without evi
 
 # Open
 
-**Agreed order: 3, then 10, then 9** (2026-08-15). Three reasons, and the third is the one that matters:
+**Agreed order: 3, then 10, then 9** (2026-08-15). **3 is done**, so what is left is 10, then 9:
 
-- **3 is independent and now unblocked.** One function, the largest measurable win, and it touches no
-  demo narration — so it costs the owner no re-stepping. Its only blocker was that it could not be
-  verified statically, and an agent can drive the lab now.
 - **10 is the long pole** and the one that needs the owner afterwards, because a new demo script is
   narration he has to walk through.
 - **9 is last because it depends on 10.** `photoservice-app.ps1` writes its logging archive to the
@@ -188,39 +243,6 @@ others is not established** — do not write down a mechanism for it without evi
   and it is the one order that breaks something.
 
 Each of these rewrites demo narration the owner has to step through, so **ask before starting one**.
-
-## 3. `Write-PgTable` does not use `COPY`
-
-**Where:** `lib/Write-PgTable.ps1`
-
-It fills a `DataTable` and lets an `NpgsqlDataAdapter` with an `NpgsqlCommandBuilder` generate the
-`INSERT` statements. PostgreSQL's own bulk path is not used. A long-standing wish rather than a defect.
-
-**Evidence from the Python port**, `Users.xml`, 12220 rows into the same table on the same container:
-
-| Approach | Result |
-| --- | --- |
-| `executemany`, converted values | 1.27 s |
-| `executemany`, raw strings | 0.95 s |
-| `COPY`, converted values | 0.30 s |
-| `COPY`, raw strings | 0.14 s |
-
-**Fix:** Npgsql exposes `BeginTextImport` and `BeginBinaryImport`. The text variant is the closer match
-to what the Python port does — it writes the values as text and lets PostgreSQL parse them into the
-column types, which removes the type handling entirely. The binary variant is faster again but needs the
-correct .NET type per column.
-
-**Worth checking while there:** escaping. In the Python port, 24 of the 4512 rows of `Comments.xml`
-contain a tab, a newline or a backslash in `Text`, and all of them round-trip byte-exact. That is the
-test case for any `COPY` implementation, and a broken one corrupts *silently* — the failure mode this
-repository fears most.
-
-**This one cannot be shipped on static checks**, which is why it sat here — and **that blocker is
-gone as of 2026-08-15**: an agent may now drive the lab, so it can be written, run against a live
-container and compared value by value in one session. See "Verifying a change" in `AGENTS.md`.
-
-**In the Python port:** both `write_pg_table` and `import_pg_table` use `COPY`, with raw strings for the
-file import, so that side carries no type conversion for PostgreSQL at all.
 
 ## 9. Remove MinIO
 
