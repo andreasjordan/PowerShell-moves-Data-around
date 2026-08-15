@@ -108,6 +108,84 @@ escaped by hand:
 | `Remove-MioFile` | Delete an object. |
 | `Import-OraLibrary` / `Import-PgLibrary` | Download `Oracle.ManagedDataAccess.dll` / `Npgsql.dll` from nuget.org into `lib/` and load them. |
 
+## MinIO is on its way out of the lab
+
+**The five `*-Mio*.ps1` files stay. The container does not.** MinIO changed its licence, and it answers a
+different question from every other provider here — the rest of this library is about how rows get into
+and out of a database and what happens to their types on the way, while MinIO is about uploading and
+downloading a file. So it is leaving `docker/docker-compose.yaml`, the setup scripts and the demos,
+and the code is being kept here instead of deleted. Entry 9 of `SIBLING-FINDINGS.md`.
+
+**It has not left yet.** The `minio` service is still in the lab, because
+`docker/photoservice-app.ps1` writes its logging archive to the bucket and the *"Transfer data from
+logging (or kafka)"* section of `demo/04_photoservice.ps1` reads it back. That section is being ported
+onto Kafka first — entry 10 — and MinIO goes out in the same change. Removing it before then would
+empty half of demo 4 without failing, which is the one order that breaks something.
+
+**Why the code is worth keeping.** `Connect-MioInstance` signs its own requests, and the whole scheme
+is four lines you can read on a slide:
+
+```powershell
+$bytesToHash = [Text.Encoding]::ASCII.GetBytes("$Method`n`n$ContentType`n$Date`n/$bucket/$Key")
+$bytesHashed = [System.Security.Cryptography.HMACSHA1]::new($bytesSecret).ComputeHash($bytesToHash)
+"AWS " + $accessKey + ":" + [Convert]::ToBase64String($bytesHashed)
+```
+
+That is **AWS Signature Version 2** — verb, an empty Content-MD5, content type, date and
+`/bucket/key`, joined by newlines, HMAC-SHA1 with the secret key, base64, into an
+`Authorization: AWS <key>:<signature>` header. Not SigV4, which builds a canonical request and derives
+a signing key through four chained HMAC-SHA256 rounds; this repository said SigV4 for a while and was
+wrong. SigV2 is the older scheme and is why it fits on a slide at all.
+
+It returns a `PSCustomObject` rather than a connection — HTTP has nothing to hold open — and that
+object carries five script methods (`GetAuthorization`, `GetFileListParams`, `GetFileParams`,
+`SetFileParams`, `RemoveFileParams`) which each build the signed `Invoke-WebRequest` splat for one
+operation. The four verbs are thin wrappers around those.
+
+**What using it looks like**, once there is a bucket to point at. Assembled from the call sites that
+are being removed — `demo/init_stackexchange.ps1`, the *"Bonus: Getting data from MinIO"* section of
+`demo/02_stackexchange.ps1`, the upload loop of `05_sample_data_setup.ps1` and the cleanup loop of
+`docker/photoservice-app.ps1`:
+
+```powershell
+# Connect. Nothing is opened - this builds the object that signs the requests.
+$credential = [PSCredential]::new('stackexchange', ('Passw0rd!' | ConvertTo-SecureString -AsPlainText -Force))
+$mio = Connect-MioInstance -Instance '127.0.0.1' -Credential $credential -Bucket stackexchange
+
+# Upload, either from a file or from a string in memory
+Set-MioFile -Connection $mio -Key Users.xml -InFile ../data/stackexchange/Users.xml
+Set-MioFile -Connection $mio -Key note.txt -Content 'written from memory'
+
+# List. One object per key, with LastModified, ETag and Size.
+Get-MioFileList -Connection $mio
+
+# Download. Without -OutFile the content comes back as lines, so this is a line count.
+$usersData = Get-MioFile -Connection $mio -Key Users.xml
+$usersData.Count
+
+# With -OutFile it is written to disk and nothing is returned
+Get-MioFile -Connection $mio -Key Users.xml -OutFile ./Users.xml
+
+# Delete
+Remove-MioFile -Connection $mio -Key note.txt
+```
+
+`-ContentType` defaults to `text/plain; charset=UTF-8` on both `Get-MioFile` and `Set-MioFile`, and is
+part of the signature, so it has to match what the object was stored with.
+
+**To run any of it again** you need something S3-compatible on `-Instance` and a bucket the credential
+may write to — a MinIO container of your own, or any other S3-compatible server. Two limits are worth
+knowing before you try:
+
+- **`-Instance` gets `:9000` appended** unless you pass a port yourself, because that is MinIO's
+  default. `-Instance 'storage.example.com:443'` keeps its own port.
+- **The URL is built as `http://`,** so this talks to plain HTTP only. Real AWS S3 is therefore out of
+  reach without changing that line — and AWS has deprecated SigV2 for new regions anyway. Against a
+  local container over HTTP, which is what it was written for, it works as it stands.
+
+What leaves this repository is the container, its init script, the two bucket policies and the `.env`
+block — not the ability to talk to a bucket.
+
 ## Gaps in the grid
 
 The names are fixed by the naming grid, so the empty cells are worth writing down before anyone invents

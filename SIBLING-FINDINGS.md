@@ -269,10 +269,19 @@ does a file get uploaded and downloaded".
 - `photoservice-app.ps1` writes its logging archive to the bucket, and clears the bucket at startup.
   That has to become the Kafka producer of entry 10, or the application stops emitting events at all.
 
-**Worth thinking about before deleting:** the hand-rolled AWS SigV4 signing in `Connect-MioInstance` is
-the most interesting code in either repository, precisely because no SDK hides it. Deleting it removes
-something genuinely good. Keeping it somewhere outside the demo — a gist, a blog post, an appendix — is
-worth five minutes of thought before `git rm`.
+**Decided on 2026-08-15: the code is kept, only the lab loses it.** The five `lib/*-Mio*.ps1` files stay
+where they are, and `lib/README.md` has a *"MinIO is on its way out of the lab"* section with a worked
+example of all five functions, assembled from the call sites listed above before they are removed. So
+the list above is what goes: the container, the init script, the two policies, the `.env` block, the
+setup and demo call sites — not the functions.
+
+That settles what this entry used to leave open, which was where to put the hand-rolled signing before
+`git rm` took it. **It is also not what this file said it was.** `Connect-MioInstance` signs with
+**AWS Signature Version 2** — `HMACSHA1` over `verb \n content-md5 \n content-type \n date \n
+/bucket/key`, base64, into an `Authorization: AWS <key>:<signature>` header. Both this entry and
+`AGENTS.md` called it SigV4, which builds a canonical request and derives a signing key through four
+chained HMAC-SHA256 rounds and looks nothing like this. Corrected in both places; the code is unchanged
+and was always correct SigV2.
 
 **In the Python port:** done, completely. No demo uses it, the user-facing documentation does not mention
 it, and the service, its init script, both policy files and the `.env` block have been deleted. Use that
