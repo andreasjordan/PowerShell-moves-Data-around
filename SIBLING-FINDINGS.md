@@ -429,6 +429,55 @@ staggering stops being visible while narrating.
 Whatever is chosen, **both applications change together and the two `AGENTS.md` notes about putting
 PhotoService last come out in the same commit.**
 
+## 18. SQL Server uses `DATETIME`, so it cannot hold what Oracle and PostgreSQL hold
+
+**Where:** `docker/sqlserver-stackexchange.sql`, **22 columns**. The file is byte-identical in both
+repositories, so **this points both ways** and has to land on both sides together.
+
+**What:** every timestamp column in the StackExchange schema is `DATETIME`, whose granularity is about
+3.33 ms — it stores only .000, .003 and .007 within a hundredth. The Oracle and PostgreSQL schemas use
+`TIMESTAMP(3)`, which holds exact milliseconds. So the same source file lands differently in the three
+databases, and only SQL Server is lossy.
+
+It is 11 columns, each once in the real table and once in its `Import_` staging twin:
+
+```
+Badges/Comments/PostLinks/Votes  CreationDate
+Users                            CreationDate, LastAccessDate
+Posts                            ClosedDate, CommunityOwnedDate, CreationDate,
+                                 LastActivityDate, LastEditDate
+```
+
+**Measured on 2026-08-15**, driving the shipped `import_*_table` functions against live containers and
+comparing every value back to `Users.xml`:
+
+| Provider | Column type | Result over 12220 rows |
+| --- | --- | --- |
+| PostgreSQL | `TIMESTAMP(3)` | 0 differ, exact |
+| Oracle | `TIMESTAMP(3)` | 0 differ, exact |
+| SQL Server | `DATETIME` | exact equality impossible; passes only within a 4 ms tolerance |
+
+`Users.xml` is a good witness for this: **12179 of its 12220 rows carry real milliseconds**, while every
+single `CreationDate` ends in `.000`. That asymmetry is why the original `import_ora_table` bug was so
+hard to see, and it is the same asymmetry that hides this one.
+
+**Why it matters more here than the 3 ms suggests.** The point of the scenario is the same data shown
+through three providers side by side. A column that silently rounds in one of the three makes that
+comparison unequal in a way no narration mentions — and "the row count is right, so the import worked"
+is exactly the trap `AGENTS.md` warns about on both sides.
+
+**Fix:** `DATETIME` → `DATETIME2(3)` in those 22 places, in both repositories.
+
+Two practical notes for whoever does it:
+
+- **Editing the init SQL changes nothing on an existing machine.** These files run only when the
+  SQL Server volume is created, so applying this needs the sqlserver volume rebuilt — or an `ALTER
+  TABLE ... ALTER COLUMN` pass against the running container. Worth saying out loud in the commit, or
+  the next person concludes the change did not work.
+- `DATETIME2(3)` is not merely wider: it is 7 bytes rather than 8, and its range starts at year 0001
+  instead of 1753. Neither matters for this data, and both are the kind of thing worth checking once
+  rather than discovering during a talk.
+
 ---
 
 Add an entry above when something is found in this repository that belongs in the Python one, and say
