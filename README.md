@@ -32,7 +32,7 @@ meant to be shown next to each other, and they are meant to live in the same WSL
 
 ## Supported PowerShell versions and operating systems
 
-Some functionality can be used (and some can be changed to work) with Windows PowerShell 5.1, but most of the code is targeted at PowerShell 7 and tested with the current version PowerShell 7.5.1.
+Some functionality can be used (and some can be changed to work) with Windows PowerShell 5.1, but most of the code is targeted at PowerShell 7, and is developed and run against the current 7.x release.
 
 `01_setup.ps1` itself needs PowerShell 7, because it loads the ADO.NET drivers to check that they work on this side.
 
@@ -176,6 +176,11 @@ To demo, run `start_demo.ps1`. Both repositories publish the same ports, so only
 time, and `start_demo.ps1` stops the other one for you before starting its own. That is a stop and not
 a `down`, so the volumes on both sides survive - switching back and forth costs a minute, not another
 Oracle start.
+
+Why it stops the other stack rather than letting the ports collide: both repositories use the same
+ports, the same password *and* the same database names. A port conflict would at least be loud. Instead
+the other stack answers every connection, so a demo started while the sibling is up does not fail - it
+succeeds against the wrong volumes.
 
 To see which stack is currently running:
 
