@@ -549,39 +549,47 @@ Two practical notes, the first of which caught us:
 
 ---
 
-## 19. The two applications store `created_at` two hours apart — **open, points both ways**
+## 19. `created_at` was neither local nor consistent — **fixed both sides**
 
-**Where:** `docker/photoservice-app.ps1` here and `docker/photoservice-app.py` in the **Python**
-repository, and the `order_header.created_at` / `updated_at` columns both of them write
+**Where:** `docker/photoservice-app.ps1` and `docker/docker-compose.yaml` here, and the same two files
+in the **Python** repository. **This one points both ways** and had to land on both, because the two
+applications have to agree on what the column means.
 
-**What:** both applications take a local timestamp — `[datetime]::Now` and `datetime.now()` — and both
-write it to a PostgreSQL `TIMESTAMP(3)` column, which has no time zone. The drivers then disagree.
-psycopg writes a naive local datetime through unchanged, so the sibling's PostgreSQL holds **local**
-time. Npgsql converts a `DateTime` whose `Kind` is `Local` to UTC on the way in, so this repository's
-PostgreSQL holds **UTC** — two hours earlier on this machine.
+**Decided by the owner on 2026-08-15: local time.** UTC is the better default in general, and the
+argument against it here is that a demo is read off a wall clock — an order placed at 18:23 that
+pgAdmin shows as 16:23 costs a minute of explaining that has nothing to do with moving data. DST is
+not a risk because nobody demos across a changeover. The logging event's own `Timestamp` field stays
+UTC on both sides, so one message does carry both conventions; that is deliberate and is the one
+place where the two disagree.
 
-**Measured on 2026-08-15**, comparing the SQL Server tables that `demo/06_eventstreaming.ps1` rebuilt
-from the topic against PostgreSQL, over 766 order headers: every row differed by exactly **120
-minutes**, which is this machine's UTC offset, and nothing else differed at all. Compared as instants
-the two agree to the millisecond on all 766.
+**There were two separate problems, and the first entry only found one of them.**
 
-**Why it is worth an entry rather than a shrug.** The whole point of the two repositories is the same
-data shown through two languages side by side. Same application, same schema, same column — and one
-holds `18:23:56` while the other holds `16:23:56`. Nobody looking at pgAdmin on the two machines would
-expect that, and no narration mentions it.
+**1. Npgsql converted the value on the way in.** A `DateTime` whose `Kind` is `Local` becomes UTC in a
+`TIMESTAMP` column. Measured over 766 order headers: the Kafka event said `18:23:56.418+02:00` and the
+column held `16:23:56.418` — the same instant, two different readings, and a replay through demo 6
+therefore landed a different value in SQL Server than the direct PostgreSQL transfer in demo 4.
+`Get-LocalTimestamp` now hands over `[datetime]::SpecifyKind([datetime]::Now, 'Unspecified')`, which
+is what the column actually is: a wall clock with no zone. Verified afterwards — the topic and the
+column agree to the millisecond, and the JSON no longer carries an offset at all.
 
-**It also shows up inside this repository alone**, which is how it was found: the event carries the
-local time with its offset, so a replay through Kafka lands `18:23:56` in SQL Server while a direct
-PostgreSQL → SQL Server transfer in demo 4 lands `16:23:56`. Both are the same instant; neither path
-is wrong on its own; they simply disagree about what the column means.
+**2. The container had no time zone, so "local" was UTC.** This is the part the first write-up missed
+and it is the one that actually decided what the demo shows. Neither application image has a usable
+zone: the PowerShell image has no `tzdata` at all, so `TZ` alone does nothing, and the Python image
+has `tzdata` but an `/etc/localtime` pointing at UTC. Both containers therefore ran on UTC while WSL2
+and Windows were on CEST. Fixing only the first problem stored a consistent value that was still two
+hours behind the wall clock. Both compose files now mount `- /etc/localtime:/etc/localtime:ro`, which
+is enough for .NET and for Python and needs no package installed.
 
-**Not fixed, deliberately.** It is older than the Kafka work and fixing it is a decision, not a
-tidy-up: either this side pins `Kind` to `Unspecified` before binding so Npgsql stops converting, or
-both sides move to UTC everywhere, or the columns become `TIMESTAMPTZ`. The first matches the sibling
-and is the smallest change; the last is the only one that makes the ambiguity impossible. It touches
-demo 4's data on this side either way, so it wants the owner.
+**A correction to the first version of this entry.** It claimed the two repositories held `created_at`
+two hours apart, psycopg writing local where Npgsql wrote UTC. That was **inferred and wrong**: the
+sibling's container was on UTC too, so both sides held UTC and there was no gap between them. The
+measured 120-minute gap was *inside this repository*, between what the event said and what the column
+held. Both are fixed now and both sides store the same wall clock.
 
----
+**Not established, and deliberately not guessed at:** the container reported `+02:00` earlier in the
+same session and UTC later, with no change to its configuration in between. The mount removes the
+question rather than answering it. Do not write down a mechanism for it without evidence.
+
 
 Add an entry above when something is found in this repository that belongs in the Python one, and say
 plainly which direction it points — the file is read from both sides.

@@ -10,8 +10,8 @@ foreach ($file in (Get-ChildItem -Path ../lib/*-*.ps1)) { . $file.FullName }
 
 `Import-Module PSFramework` has to come first — every function logs through `Write-PSFMessage` and
 reports errors through `Stop-PSFFunction`. The Oracle and PostgreSQL functions additionally need
-`Import-OraLibrary` / `Import-PgLibrary`, which download the ADO.NET drivers from nuget.org into this
-directory on first use. Those `*.dll` files are gitignored.
+`Import-OraLibrary` / `Import-PgLibrary` / `Import-KfkLibrary`, which download the drivers from nuget.org into this
+directory. `03_pwsh_setup.ps1` calls all three during setup, on Windows and inside WSL2, so a fresh clone has them before any container starts. Those `*.dll` and `*.so` files are gitignored.
 
 ## How the pieces fit together
 

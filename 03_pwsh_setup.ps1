@@ -37,11 +37,24 @@ foreach ($module in $modules) {
 
 Import-Module -Name PSFramework
 
-# The ADO.NET drivers are downloaded into lib/ on first use. The repository is one directory on the
-# Windows filesystem that WSL2 mounts, so the second run of this script finds the DLLs already
-# there - but it still loads them, which is the check that this side can.
+# The drivers are downloaded into lib/ here rather than on first use, and this script running twice
+# is what makes that work. The repository is one directory on the Windows filesystem that WSL2
+# mounts, so the second run mostly finds the files already there - but it still loads them, which is
+# the check that this side can.
+#
+# It also has to happen before 04_docker_compose.sh, and that is not a detail: the photoservice
+# container mounts lib/ READ ONLY, so it can load a driver but can never download one. If these
+# lines moved after the containers start, a fresh clone would give the application a directory with
+# no drivers in it and no way to fix that itself.
 . $PSScriptRoot/lib/Import-OraLibrary.ps1
 Import-OraLibrary
 
 . $PSScriptRoot/lib/Import-PgLibrary.ps1
 Import-PgLibrary
+
+# Kafka is the one driver that is not pure .NET, so this is also the step that puts the native
+# librdkafka next to the managed assembly - a different file per platform, which is the other
+# reason both runs of this script matter. Windows fetches librdkafka.dll and its OpenSSL, zlib and
+# zstd companions; WSL2 fetches librdkafka.so, which the container then uses as well.
+. $PSScriptRoot/lib/Import-KfkLibrary.ps1
+Import-KfkLibrary

@@ -185,7 +185,7 @@ both sides. `README.md` prints the command rather than a list, so **do not reint
 the module names anywhere** — the sibling had exactly that and its two lists drifted twice.
 
 The ADO.NET drivers are not in that list: `Import-OraLibrary` and `Import-PgLibrary` download
-`Oracle.ManagedDataAccess.dll` and `Npgsql.dll` from nuget.org into `lib/` on first use. Those `*.dll`
+`Oracle.ManagedDataAccess.dll`, `Npgsql.dll` and `Confluent.Kafka.dll` plus its native `librdkafka` from nuget.org into `lib/`. `03_pwsh_setup.ps1` calls all three, on both sides, **before `04_docker_compose.sh` starts anything** - the photoservice container mounts `lib/` read only, so it can load a driver but never download one. Those `*.dll` and `*.so`
 files are gitignored — **never commit a DLL**.
 
 ## The sample data on disk
@@ -307,7 +307,7 @@ foreach ($file in (Get-ChildItem -Path ../lib/*-*.ps1)) { . $file.FullName }
 ```
 
 `Import-Module PSFramework` has to come first, because every `lib/` function calls `Write-PSFMessage`
-and `Stop-PSFFunction`. `lib/*.dll` are downloaded from nuget.org on first use by `Import-OraLibrary` /
+and `Stop-PSFFunction`. `lib/*.dll` and `lib/*.so` are downloaded from nuget.org by `03_pwsh_setup.ps1` through `Import-OraLibrary` / `Import-KfkLibrary` /
 `Import-PgLibrary` and are gitignored.
 
 Required modules are in `modules.txt` — see `Adding a dependency` above, and do not copy the list back
@@ -324,6 +324,17 @@ into this file.
   rewrites SQL, and a visible `CREATE USER … 'Passw0rd!'` on a slide says what it does.
 - `ConvertTo-SecureString -AsPlainText -Force` — same reason.
 - `127.0.0.1` rather than `localhost`, to force IPv4.
+- **The shop stores local time, and `- /etc/localtime:/etc/localtime:ro` on the `photoservice`
+  service is what makes that true.** UTC would be the better default anywhere else; here the demo is
+  read off a wall clock, and an order placed at 18:23 that pgAdmin shows as 16:23 costs a minute of
+  explaining that has nothing to do with moving data. The image has **no time zone data at all**, so
+  without that mount "local" is UTC and `TZ` on its own does nothing — there is no tzdata for it to
+  read. The sibling's compose file mounts the same file for the same reason. Entry 19 of
+  `SIBLING-FINDINGS.md`. Do not remove the mount, and do not replace it with a `TZ` variable.
+- **`Get-LocalTimestamp` in `docker/photoservice-app.ps1` exists because of Npgsql**, which turns a
+  `DateTime` whose `Kind` is `Local` into UTC on the way into a `TIMESTAMP` column. `Unspecified` is
+  what that column actually is — a wall clock with no zone — and it keeps the value the application
+  put on the Kafka topic identical to the value in the database. Same entry.
 - **dbatools is deliberately not used.** Hand-written ADO.NET *is* the demo. Never propose replacing it.
 - `System.Data.SqlClient` rather than `Microsoft.Data.SqlClient` — a known and accepted trade-off,
   because the legacy client ships with .NET and needs no extra download.

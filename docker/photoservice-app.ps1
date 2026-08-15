@@ -101,6 +101,25 @@ $newShipment = @{
     NextRun  = (Get-Date).AddSeconds(120)
 }
 
+# Every timestamp that is stored goes through here, and the SpecifyKind is the whole point of it.
+#
+# Npgsql converts a DateTime whose Kind is Local into UTC on the way into a TIMESTAMP column, so a
+# shop that took an order at 18:23 stored 16:23 and pgAdmin showed a time two hours in the past for
+# no visible reason. Unspecified means "wall clock, no time zone", which is exactly what the column
+# is - and it is what psycopg writes for the naive datetime.now() in the sibling's
+# photoservice-app.py, so the two repositories now hold the same value for the same order.
+#
+# It also settles it for the topic: with no Kind, ConvertTo-Json writes 2026-08-15T18:23:56.418
+# instead of the same instant with a +02:00 offset on the end, so a replay through Kafka and a
+# direct PostgreSQL to SQL Server transfer land the same value.
+#
+# Local time is a deliberate choice for a demo - the clock on the wall is the clock on the slide.
+# The Timestamp of the logging event below stays UTC, because the sibling's is UTC too.
+function Get-LocalTimestamp {
+    [datetime]::SpecifyKind([datetime]::Now, 'Unspecified')
+}
+
+
 # An event goes straight to the Kafka topic, where demo/06_eventstreaming.ps1 reads it. It used to
 # be collected in a list and written to a MinIO bucket as a log archive every twelve seconds, which
 # is why there was a schedule for it; a topic needs no schedule and no batching.
@@ -168,7 +187,7 @@ while ($true) {
         $orderHeader = [PSCustomObject]@{
             id            = $newOrder.NextId
             customer_id   = [int](Get-Random -Minimum 1 -Maximum $newCustomer.NextId)
-            created_at    = [datetime]::Now
+            created_at    = Get-LocalTimestamp
             updated_at    = $null
             payment_uuid  = $null
             shipment_uuid = $null
@@ -248,7 +267,7 @@ while ($true) {
             $payment = [PSCustomObject]@{
                 OrderId     = $orderId
                 PaymentUuid = New-Guid
-                UpdatedAt   = [datetime]::Now
+                UpdatedAt   = Get-LocalTimestamp
             }
             Invoke-PgQuery -Connection $dbConfig.PgConnection -Query 'UPDATE order_header SET updated_at = :updated_at, payment_uuid = :payment_uuid WHERE id = :id' -ParameterValues @{ updated_at = $payment.UpdatedAt ; payment_uuid = $payment.PaymentUuid ; id = $payment.OrderId }
             Invoke-PgQuery -Connection $dbConfig.PgConnection -Query 'INSERT INTO order_event (order_id, updated_at, payment_uuid) VALUES (:order_id, :updated_at, :payment_uuid)' -ParameterValues @{ order_id = $payment.OrderId ; updated_at = $payment.UpdatedAt ; payment_uuid = $payment.PaymentUuid }
@@ -269,7 +288,7 @@ while ($true) {
             $shipment = [PSCustomObject]@{
                 OrderId      = $orderId
                 ShipmentUuid = New-Guid
-                UpdatedAt    = [datetime]::Now
+                UpdatedAt    = Get-LocalTimestamp
             }
             Invoke-PgQuery -Connection $dbConfig.PgConnection -Query 'UPDATE order_header SET updated_at = :updated_at, shipment_uuid = :shipment_uuid WHERE id = :id' -ParameterValues @{ updated_at = $shipment.UpdatedAt ; shipment_uuid = $shipment.ShipmentUuid ; id = $shipment.OrderId }
             Invoke-PgQuery -Connection $dbConfig.PgConnection -Query 'INSERT INTO order_event (order_id, updated_at, shipment_uuid) VALUES (:order_id, :updated_at, :shipment_uuid)' -ParameterValues @{ order_id = $shipment.OrderId ; updated_at = $shipment.UpdatedAt ; shipment_uuid = $shipment.ShipmentUuid }

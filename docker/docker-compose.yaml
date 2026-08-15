@@ -122,6 +122,11 @@ services:
     # To find latest PowerShell images, see https://mcr.microsoft.com/en-us/artifact/mar/powershell/tags
     image: mcr.microsoft.com/powershell:preview-7.6-ubuntu-24.04
     volumes:
+      # The shop stores local time - see Get-LocalTimestamp in the application - and without this
+      # line "local" is UTC, because the image has no time zone data at all. The demo would then
+      # show orders two hours in the past for no visible reason. Mounting the host's file is enough
+      # for .NET to pick the zone up; TZ on its own does nothing here, there is no tzdata to read.
+      - /etc/localtime:/etc/localtime:ro
       - ./photoservice-app.ps1:/PhotoService/app.ps1:ro
       - ./photoservice-CustomerSource.json:/PhotoService/CustomerSource.json:ro
       - /usr/local/share/powershell/Modules:/usr/local/share/powershell/Modules:ro
