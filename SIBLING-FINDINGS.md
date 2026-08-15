@@ -288,7 +288,7 @@ there), the producer calls in `photoservice-app.ps1`, and a `demo/06_eventstream
 
 # For the other side
 
-## 15. The PostgreSQL wait in `04_docker_compose.sh` returns too early
+## 15. The PostgreSQL wait in `04_docker_compose.sh` returns too early — **fixed there, and now measured**
 
 **Where:** `04_docker_compose.sh` in the **Python** repository, which has the version this one was
 copied from
@@ -318,10 +318,37 @@ wait_for postgres 150 \
 case. While the database does not exist yet, `psql -d stackexchange` simply fails and the probe keeps
 waiting, which is the behaviour it already had.
 
-**Not verified against a running container** — this repository's containers were down when it was
-written.
+**Applied in the Python repository on 2026-08-15, and the hole was measured rather than argued.** The
+postgres volume was deleted so the init scripts ran again, and the container log gives the timeline:
 
-## 16. Nothing holds WSL2 open while the Windows half of `01_setup.ps1` runs
+```
+10:16:23.828  running /docker-entrypoint-initdb.d/stackexchange.sql
+10:16:24.088  CREATE DATABASE            <- the old probe becomes true here
+10:16:24.302  LOG:  shutting down        <- all 18 CREATE TABLEs happened in this gap
+10:16:24.803  FATAL:  the database system is shutting down
+10:16:26.331  FATAL:  the database system is shutting down
+10:16:27.202  database system is ready to accept connections   <- the real server
+```
+
+**The window is 214 ms**, and every one of the 18 tables is created inside it.
+
+**And the probe really can land there**, which was the part worth checking: the postgres entrypoint runs
+the init files against a *temporary* server started with `listen_addresses=''`, so it is reachable only
+over the unix socket inside the container — which is exactly the path `docker compose exec -T postgres
+psql` takes. The two `FATAL: the database system is shutting down` lines above are the polling probes of
+the test being refused, so the connection demonstrably gets through to that server.
+
+With `sleep 2` between attempts, that is roughly a **one-in-ten chance per start** of the wait returning
+about three seconds early against a schema that is still being built. The other nine times it passes by
+luck, which is why nobody had seen it fail.
+
+**One residual, deliberately not fixed.** Both the old and the new probe can be satisfied by that
+temporary server, which then shuts down before the real one starts — so neither proves the final server
+is up. The new probe at least guarantees the *schema is complete* when it returns, which is what the
+wait is for, and in both repositories the mongo and Oracle waits follow and take far longer than the
+three seconds postgres needs to come back. Worth knowing before anything is reordered.
+
+## 16. Nothing holds WSL2 open while the Windows half of `01_setup.ps1` runs — **fixed there**
 
 **Where:** `01_setup.ps1` in the **Python** repository — the stretch from the port-forwarding wait to
 `docker compose stop`
@@ -356,8 +383,16 @@ container that has been shut down and a forward that has not appeared yet are **
 the driver's error message**, and only one of the two was considered at the time. The container log
 settles it, and the timestamps are UTC there while the script output is local.
 
-**Not verified against a running container here** — the fix was written after the failure, and the
-containers have not been started since.
+**Applied in the Python repository on 2026-08-15**, in the same shape as here: the `Start-Process` goes
+in immediately before the port-forwarding wait, and the `Stop-Process` immediately after
+`docker compose stop`, so the whole Windows half is covered and nothing after the stop needs to be.
+
+**Still not verified by a full `01_setup.ps1` run**, and it cannot be cheaply — proving it means letting
+the setup run end to end on a machine where it would otherwise fail, which costs an Oracle start on both
+sides. What *is* now confirmed is the mechanism it defends against, from the other direction: an agent
+driving these containers has to hold WSL2 open with exactly this `wsl sleep` trick, because without it
+the stack is gone between one tool call and the next. That is the same effect, met deliberately instead
+of by accident.
 
 ## 17. The PhotoService schedule makes its own demo expensive to test
 
