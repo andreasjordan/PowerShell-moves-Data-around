@@ -506,11 +506,12 @@ The three providers now hold the same values, which is what the scenario claims 
 Two practical notes, the first of which caught us:
 
 - **Editing the init SQL changes nothing on an existing machine.** These files run only when the
-  SQL Server volume is created. The running container was migrated with an `ALTER TABLE ... ALTER
-  COLUMN` pass generated from `sys.columns`, so that each column kept its own nullability instead of
-  it being guessed at; it only touches columns that are still `datetime`, so it is safe to run twice.
-  **The sibling's containers were stopped at the time and did not get it** — that stack still has
-  `DATETIME` in its volume until somebody runs the same statements or rebuilds it.
+  SQL Server volume is created, so **both** stacks had to be migrated by hand — this one first, then
+  the sibling's after switching to it. The pass is an `ALTER TABLE ... ALTER COLUMN` generated from
+  `sys.columns`, so that each column keeps its own nullability instead of it being guessed at, and it
+  only touches columns that are still `datetime`, which makes it safe to run twice. Both volumes are
+  done and both were re-measured afterwards at 9/9 with the tolerance removed. A machine that installs
+  from scratch from here on gets `DATETIME2(3)` from the init SQL and needs none of this.
 - `DATETIME2(3)` is not merely wider: it is 7 bytes rather than 8, and its range starts at year 0001
   instead of 1753. Neither matters for this data.
 
