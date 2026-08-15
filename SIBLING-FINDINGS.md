@@ -359,16 +359,47 @@ settles it, and the timestamps are UTC there while the script output is local.
 **Not verified against a running container here** — the fix was written after the failure, and the
 containers have not been started since.
 
+## 17. The PhotoService schedule makes its own demo expensive to test
+
+**Where:** `docker/photoservice-app.ps1` here, lines 73-87, and `docker/photoservice-app.py` in the
+**Python** repository, which keeps the same numbers. **This one points both ways** — it has to land on
+both sides in the same turn, because the schedule is part of what the two demos are compared on.
+
+**What:** the application staggers its work with four `NextRun` offsets taken from the moment it starts:
+
+```powershell
+$newOrder    = @{ DelaySec = 1; NextRun = (Get-Date).AddMinutes(10); NextId = 1 }
+$newPayment  = @{ DelaySec = 1; NextRun = (Get-Date).AddMinutes(15) }
+$newShipment = @{ DelaySec = 1; NextRun = (Get-Date).AddMinutes(20) }
+```
+
+Customers start immediately; orders are ten minutes out, payments fifteen, shipments twenty.
+
+**Effect:** the second half of demo 4 has nothing to find for twenty minutes after every container
+start — and in the sibling, demo 6 reads the events rather than the tables, so it is stricter still.
+`docker compose restart photoservice` truncates the tables and restarts the clock, and so does every
+switch between the two repositories, which is what makes switching cost twenty minutes rather than the
+one minute the container start actually takes. A run inside that window looks broken and is not.
+
+It is also why `AGENTS.md` on both sides has to tell people to put PhotoService last and switch once.
+That advice exists only to work around this.
+
+**Fix, not yet applied and needing a decision on the numbers:** the *relative* order is what the demo
+teaches — a customer, then an order, then a payment, then a shipment — and nothing about the story
+needs those gaps to be ten minutes. Scaling them down by ten, to one minute, ninety seconds and two
+minutes, keeps the sequence intact and makes the demo testable in the time a container takes to become
+healthy. Whether to go further, to seconds, is a judgement about how it reads live: too fast and the
+staggering stops being visible while narrating.
+
+Whatever is chosen, **both applications change together and the two `AGENTS.md` notes about putting
+PhotoService last come out in the same commit.**
+
 ---
 
 Add an entry above when something is found in this repository that belongs in the Python one, and say
 plainly which direction it points — the file is read from both sides.
 
-Two things are worth carrying over when they are done here, because they change the sibling too:
+One thing is worth carrying over when it is done here, because it changes the sibling too:
 
-- **The PhotoService schedule.** Both applications stagger their work over twenty minutes, which is what
-  makes switching between the repositories expensive. Shortening it to seconds was raised on the Python
-  side; whichever side does it first, the other should follow, because it is this repository's schedule
-  that is being changed.
 - **MinIO and Kafka**, entries 9 and 10 above. Until they are done, the two repositories cannot be shown
   side by side for those sections, because one side is empty.
