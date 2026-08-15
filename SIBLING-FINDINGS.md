@@ -429,7 +429,7 @@ staggering stops being visible while narrating.
 Whatever is chosen, **both applications change together and the two `AGENTS.md` notes about putting
 PhotoService last come out in the same commit.**
 
-## 18. SQL Server uses `DATETIME`, so it cannot hold what Oracle and PostgreSQL hold
+## 18. SQL Server uses `DATETIME`, so it cannot hold what Oracle and PostgreSQL hold — **fixed both sides**
 
 **Where:** `docker/sqlserver-stackexchange.sql`, **22 columns**. The file is byte-identical in both
 repositories, so **this points both ways** and has to land on both sides together.
@@ -466,17 +466,30 @@ through three providers side by side. A column that silently rounds in one of th
 comparison unequal in a way no narration mentions — and "the row count is right, so the import worked"
 is exactly the trap `AGENTS.md` warns about on both sides.
 
-**Fix:** `DATETIME` → `DATETIME2(3)` in those 22 places, in both repositories.
+**Fixed on 2026-08-15:** `DATETIME` → `DATETIME2(3)` in all 22 places, in both repositories. The file
+is still byte-identical on the two sides.
 
-Two practical notes for whoever does it:
+**And measured again afterwards, which is the point.** The same check that produced the table above,
+re-run against the migrated schema with the tolerance removed:
+
+| Provider | Column type | Result over 12220 rows |
+| --- | --- | --- |
+| SQL Server | `DATETIME2(3)` | **0 differ, exact** — no tolerance needed any more |
+| PostgreSQL | `TIMESTAMP(3)` | 0 differ, exact |
+| Oracle | `TIMESTAMP(3)` | 0 differ, exact |
+
+The three providers now hold the same values, which is what the scenario claims to show.
+
+Two practical notes, the first of which caught us:
 
 - **Editing the init SQL changes nothing on an existing machine.** These files run only when the
-  SQL Server volume is created, so applying this needs the sqlserver volume rebuilt — or an `ALTER
-  TABLE ... ALTER COLUMN` pass against the running container. Worth saying out loud in the commit, or
-  the next person concludes the change did not work.
+  SQL Server volume is created. The running container was migrated with an `ALTER TABLE ... ALTER
+  COLUMN` pass generated from `sys.columns`, so that each column kept its own nullability instead of
+  it being guessed at; it only touches columns that are still `datetime`, so it is safe to run twice.
+  **The sibling's containers were stopped at the time and did not get it** — that stack still has
+  `DATETIME` in its volume until somebody runs the same statements or rebuilds it.
 - `DATETIME2(3)` is not merely wider: it is 7 bytes rather than 8, and its range starts at year 0001
-  instead of 1753. Neither matters for this data, and both are the kind of thing worth checking once
-  rather than discovering during a talk.
+  instead of 1753. Neither matters for this data.
 
 ---
 
