@@ -394,7 +394,7 @@ driving these containers has to hold WSL2 open with exactly this `wsl sleep` tri
 the stack is gone between one tool call and the next. That is the same effect, met deliberately instead
 of by accident.
 
-## 17. The PhotoService schedule makes its own demo expensive to test
+## 17. The PhotoService schedule makes its own demo expensive to test — **fixed both sides**
 
 **Where:** `docker/photoservice-app.ps1` here, lines 73-87, and `docker/photoservice-app.py` in the
 **Python** repository, which keeps the same numbers. **This one points both ways** — it has to land on
@@ -419,15 +419,38 @@ one minute the container start actually takes. A run inside that window looks br
 It is also why `AGENTS.md` on both sides has to tell people to put PhotoService last and switch once.
 That advice exists only to work around this.
 
-**Fix, not yet applied and needing a decision on the numbers:** the *relative* order is what the demo
-teaches — a customer, then an order, then a payment, then a shipment — and nothing about the story
-needs those gaps to be ten minutes. Scaling them down by ten, to one minute, ninety seconds and two
-minutes, keeps the sequence intact and makes the demo testable in the time a container takes to become
-healthy. Whether to go further, to seconds, is a judgement about how it reads live: too fast and the
-staggering stops being visible while narrating.
+**Fixed on 2026-08-15, scaled down by ten**, in `photoservice-app.ps1` and `photoservice-app.py` in the
+same turn:
 
-Whatever is chosen, **both applications change together and the two `AGENTS.md` notes about putting
-PhotoService last come out in the same commit.**
+| | was | is |
+| --- | --- | --- |
+| first order | 10 min | 60 s |
+| first payment | 15 min | 90 s |
+| first shipment | 20 min | 120 s |
+| new customer every | 60 s | 6 s |
+| new logging archive every (PowerShell only) | 120 s | 12 s |
+
+**The customer interval was scaled with the offsets rather than left alone**, and that is the part
+worth not getting wrong: what the demo shows is a *proportion*. At 60 seconds against a ten-minute
+offset, ten customers existed by the time the first order was placed. At 6 seconds against 60, ten
+still do. Scaling only the offsets would have started the orders against a single customer.
+
+The one-second intervals for orders, payments and shipments are unchanged — they cannot scale down
+meaningfully and were already the fast end of this.
+
+**The advice that existed to work around it is gone in the same commit**, from both `AGENTS.md` files
+and both `README.md` files: putting demos 4 and 6 last on each side and switching only once. Switching
+now costs about as long as the containers take to come up.
+
+**The one notebook that quoted the old numbers was corrected too.** `demo/06_eventstreaming.ipynb`
+opened with *"Give the shop twenty minutes before running this"* and then listed the whole schedule.
+That is a **markdown** cell, so fixing it needed no run and touched no outputs — 23 cells and 13
+outputs before and after, three lines changed, done with the raw exact-match replacement. Had it been a
+code cell it would have been left for the owner.
+
+The committed outputs in that notebook were produced under the old schedule. Nothing in them quotes a
+duration, so they are not now wrong, but they are the counts of a twenty-minute run and the next pass
+through the notebook will produce smaller ones.
 
 ## 18. SQL Server uses `DATETIME`, so it cannot hold what Oracle and PostgreSQL hold — **fixed both sides**
 

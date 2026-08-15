@@ -44,7 +44,7 @@ that it is not rediscovered as a new finding and not fixed as a side effect of a
 | MinIO | **Scheduled to be removed**, entry 9 of `SIBLING-FINDINGS.md`. It changed its licence, and uploading files is a different question from the one every other provider here answers. Do not build anything new on it. The hand-rolled AWS SigV4 signing in `Connect-MioInstance` is the most interesting code in either repository and is worth keeping somewhere outside the demo before it goes. |
 | Event streaming | The PhotoService demo's *"Transfer data from logging (or kafka)"* section reads the application's log archives out of MinIO. The sibling has replaced that with a real Kafka demo served by Redpanda; porting it back here is entry 10 of `SIBLING-FINDINGS.md`, including four things learned the hard way over there. |
 | `lib/Write-PgTable.ps1` | Fills a `DataTable` and lets an `NpgsqlDataAdapter` generate the `INSERT` statements. PostgreSQL's own bulk path, `COPY`, is not used, and the sibling measured that at 7× slower. A long-standing wish rather than a defect — entry 3 of `SIBLING-FINDINGS.md`. |
-| `docker/photoservice-app.ps1` | The shop that keeps inventing customers and orders. **It is the source of everything the second half of demo 04 transfers**, so those cells have nothing to find unless this container is running — and it staggers its work over twenty minutes after it starts. `docker compose restart photoservice` is the cheap reset, and it restarts that clock. |
+| `docker/photoservice-app.ps1` | The shop that keeps inventing customers and orders. **It is the source of everything the second half of demo 04 transfers**, so those cells have nothing to find unless this container is running — and it staggers its work over the first two minutes after it starts: the first order at 60 s, the first payment at 90 s, the first shipment at 120 s. `docker compose restart photoservice` is the cheap reset, and it restarts that clock. Keep the schedule in step with the sibling's `photoservice-app.py`. |
 | The Azure SQL bonus sections | At the end of `demo/02_stackexchange.ps1` and `demo/04_photoservice.ps1`. They need Azure resources, the `Az` module, a firewall rule and two environment variables, so they are not local and are not part of a normal run. |
 
 ## Demo scripts are stepped through, never run
@@ -121,10 +121,12 @@ starts while the sibling's containers are up succeeds against the wrong volumes.
 It is `docker stop`, never `down`: the other repository's volumes survive, so switching costs a minute
 rather than another Oracle start.
 
-**Two costs of the split, both known and neither worth fixing:** installing both repositories pays for
-Oracle's first start twice, because the volumes are per compose project; and switching restarts the
-PhotoService container, which truncates its tables and restarts its twenty-minute clock. Until that
-schedule is shortened, put the PhotoService demo last on each side and switch once.
+**One cost of the split, known and not worth fixing:** installing both repositories pays for Oracle's
+first start twice, because the volumes are per compose project.
+
+Switching also restarts the PhotoService container, which truncates its tables and restarts its clock —
+but that clock is two minutes now rather than twenty, so it no longer decides the running order of a
+session. The advice to put that demo last and switch only once is gone with it.
 
 **Nothing after `04` should abort `01_setup.ps1` before the stop.** The Windows `06` records its failure
 in a variable and throws after the containers are down; anything added there should do the same. This

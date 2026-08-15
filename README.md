@@ -119,8 +119,9 @@ This scenario needs PowerShell 7.
 This scenario needs PowerShell 7.
 
 The application container is the source of every customer and order the second half of this demo
-transfers, and it staggers its work over the first twenty minutes after it starts. Give it that time
-before expecting anything to be there - inside that window the demo looks broken and is not.
+transfers, and it staggers its work over the first two minutes after it starts: the first order at
+60 seconds, the first payment at 90, the first shipment at 120. Give it that couple of minutes before
+expecting anything to be there - inside that window the demo looks broken and is not.
 
 
 ### ProjectStatus
@@ -188,10 +189,10 @@ To see which stack is currently running:
 wsl --user root docker compose ls
 ```
 
-**One thing to plan the running order of a session around.** Switching restarts the PhotoService
-container, which truncates its tables and restarts its twenty-minute schedule - so the PhotoService demo
-is empty for twenty minutes after every switch, on whichever side you switch to. Until that schedule is
-shortened, put that demo last on each side and switch only once.
+**One small thing about switching.** It restarts the PhotoService container, which truncates its tables
+and restarts its schedule - so the PhotoService demo is empty for the first two minutes after every
+switch, on whichever side you switch to. That used to be twenty minutes and used to decide the running
+order of a whole session; now it is roughly as long as the containers take to come up anyway.
 
 
 ### Install WSL2
@@ -296,8 +297,8 @@ wsl --cd "$PWD\docker" --user root docker compose restart photoservice
 ```
 
 The application clears its own PostgreSQL tables and its MongoDB collection when it starts, so this puts
-it back to nothing. It also restarts the clock: the first order is scheduled ten minutes later, the
-first payment at fifteen, the first shipment at twenty.
+it back to nothing. It also restarts the clock: the first order is scheduled 60 seconds later, the
+first payment at 90, the first shipment at 120.
 
 **Everything, back to how the setup left it:**
 

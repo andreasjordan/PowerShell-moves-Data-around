@@ -63,31 +63,44 @@ Write-PSFMessage -Level Host -Message 'Reading photo data'
 $photos = Invoke-PgQuery -Connection $dbConfig.PgConnection -Query "SELECT id, name, price FROM photo"
 
 
+# The schedule, ten times faster than it used to be
+#
+# What the demo teaches is the order - a customer, then an order, then a payment, then a shipment -
+# and nothing in that story needed the gaps to be ten, fifteen and twenty minutes. They were, and it
+# made demo 4 empty for twenty minutes after every container start and after every switch between
+# the two repositories, which is most of what made switching expensive.
+#
+# The customer interval is scaled with the offsets and not left alone, because the proportion is
+# what matters: at 6 seconds each, ten customers exist by the time the first order is placed, which
+# is exactly what 60 seconds gave against a ten-minute offset. The one-second intervals stay as they
+# are - they cannot be scaled down meaningfully, and they were already the fast end of this.
+#
+# Keep this schedule in step with docker/photoservice-app.py in the sibling repository.
 Write-PSFMessage -Level Host -Message 'Setting up state objects'
 $newCustomer = @{
-    DelaySec = 60
+    DelaySec = 6
     NextRun  = Get-Date
     NextId   = 1
 }
 
 $newOrder = @{
     DelaySec = 1
-    NextRun  = (Get-Date).AddMinutes(10)
+    NextRun  = (Get-Date).AddSeconds(60)
     NextId   = 1
 }
 
 $newPayment = @{
     DelaySec = 1
-    NextRun  = (Get-Date).AddMinutes(15)
+    NextRun  = (Get-Date).AddSeconds(90)
 }
 
 $newShipment = @{
     DelaySec = 1
-    NextRun  = (Get-Date).AddMinutes(20)
+    NextRun  = (Get-Date).AddSeconds(120)
 }
 
 $newLogging = @{
-    DelaySec = 120
+    DelaySec = 12
     NextRun  = Get-Date
 }
 
