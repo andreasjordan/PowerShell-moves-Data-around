@@ -175,6 +175,20 @@ others is not established** — do not write down a mechanism for it without evi
 
 # Open
 
+**Agreed order: 3, then 10, then 9** (2026-08-15). Three reasons, and the third is the one that matters:
+
+- **3 is independent and now unblocked.** One function, the largest measurable win, and it touches no
+  demo narration — so it costs the owner no re-stepping. Its only blocker was that it could not be
+  verified statically, and an agent can drive the lab now.
+- **10 is the long pole** and the one that needs the owner afterwards, because a new demo script is
+  narration he has to walk through.
+- **9 is last because it depends on 10.** `photoservice-app.ps1` writes its logging archive to the
+  bucket; removing MinIO before the Kafka producer exists stops the application emitting events at all,
+  which silently empties the second half of demo 4. Doing 9 first is tempting — it deletes the most —
+  and it is the one order that breaks something.
+
+Each of these rewrites demo narration the owner has to step through, so **ask before starting one**.
+
 ## 3. `Write-PgTable` does not use `COPY`
 
 **Where:** `lib/Write-PgTable.ps1`
@@ -198,8 +212,12 @@ correct .NET type per column.
 
 **Worth checking while there:** escaping. In the Python port, 24 of the 4512 rows of `Comments.xml`
 contain a tab, a newline or a backslash in `Text`, and all of them round-trip byte-exact. That is the
-test case for any `COPY` implementation. **This one cannot be shipped on static checks** — see the
-verification section of `AGENTS.md`.
+test case for any `COPY` implementation, and a broken one corrupts *silently* — the failure mode this
+repository fears most.
+
+**This one cannot be shipped on static checks**, which is why it sat here — and **that blocker is
+gone as of 2026-08-15**: an agent may now drive the lab, so it can be written, run against a live
+container and compared value by value in one session. See "Verifying a change" in `AGENTS.md`.
 
 **In the Python port:** both `write_pg_table` and `import_pg_table` use `COPY`, with raw strings for the
 file import, so that side carries no type conversion for PostgreSQL at all.
@@ -281,8 +299,10 @@ there), the producer calls in `photoservice-app.ps1`, and a `demo/06_eventstream
 3. **`auto.offset.reset` only applies to a consumer group that has no committed offset.** There is no
    "start again" setting; starting again means a new group id. In a demo that gets re-run constantly this
    shows up as "the cell returned nothing the second time" rather than as an error.
-4. **The application truncates its tables at startup and staggers its work over twenty minutes.** A demo
-   run inside that window shows an empty topic and zero counts, and looks broken when it is not.
+4. **The application truncates its tables at startup and staggers its work over the first two minutes.**
+   A demo run inside that window shows an empty topic and zero counts, and looks broken when it is not.
+   It was twenty minutes when this was written; entry 17 shortened it on both sides on 2026-08-15, which
+   is most of what made this trap painful.
 
 ---
 
