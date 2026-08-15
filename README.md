@@ -34,7 +34,7 @@ meant to be shown next to each other, and they are meant to live in the same WSL
 
 Some functionality can be used (and some can be changed to work) with Windows PowerShell 5.1, but most of the code is targeted at PowerShell 7, and is developed and run against the current 7.x release.
 
-`01_setup.ps1` itself needs PowerShell 7, because it loads the ADO.NET drivers to check that they work on this side.
+`01_setup.ps1` itself needs PowerShell 7, because it downloads and loads the database drivers to check that they work on this side.
 
 The code is both tested on Windows 11 and an Ubuntu WSL2.
 
@@ -254,9 +254,9 @@ WSL2 for most of them, and finishes on the Windows side:
 
 | Step | Runs as | What it does |
 | --- | --- | --- |
-| `03_pwsh_setup.ps1 -Scope CurrentUser` | you, on Windows | The modules in `modules.txt`, and the ADO.NET drivers. First, because it is the only step that costs nothing when it fails |
+| `03_pwsh_setup.ps1 -Scope CurrentUser` | you, on Windows | The modules in `modules.txt`, and the database drivers into `lib/` - Oracle, Npgsql and Confluent.Kafka with the Windows build of its native librdkafka. First, because it is the only step that costs nothing when it fails |
 | `02_wsl2_setup.sh` | root, in WSL2 | PowerShell, Docker and 7-Zip |
-| `03_pwsh_setup.ps1 -Scope AllUsers` | root, in WSL2 | The same modules again, machine-wide so that the PhotoService container can mount them |
+| `03_pwsh_setup.ps1 -Scope AllUsers` | root, in WSL2 | The same modules again, machine-wide so that the PhotoService container can mount them - and the Linux build of librdkafka next to the Windows one, which the container needs. Both driver steps run before the containers start, because `lib/` is mounted read only into the PhotoService container and it can load a driver but never download one |
 | `04_docker_compose.sh` | root, in WSL2 | Waits for the docker daemon, starts the containers, and waits until SQL Server, PostgreSQL, MongoDB and Oracle have created the demo databases |
 | `05_sample_data_setup.ps1` | you, in WSL2 | Creates the Excel files from `sample.json` and downloads the StackExchange and Geodata samples. A download is skipped when its files are already there; `-Force` fetches them again |
 | `06_test_connections.ps1` | you, in WSL2 | Opens a connection to every database a demo uses |
