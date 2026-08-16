@@ -106,6 +106,7 @@ escaped by hand:
 | `Connect-KfkConsumer` | A consumer for `-Instance` in `-GroupId`. `-FromBeginning` sets `auto.offset.reset`. |
 | `Write-KfkTopic` | Produce `-Data` to `-Topic` as JSON, one message per object, with an optional `-Key`. Flushes before returning. |
 | `Read-KfkTopic` | Consume from `-Topic` and return `[PSCustomObject]`s, stopping after `-First` messages or `-Timeout` seconds of quiet. |
+| `Remove-KfkTopic` | Delete `-Topic` on `-Instance` and wait until the broker has really dropped it. |
 
 **There are two connect functions and that is deliberate.** Every other provider here has one
 connection that reads and writes; Kafka has a producer and a consumer, which are different clients
@@ -123,6 +124,15 @@ is otherwise "forever".
 a group that has read before changes nothing at all, and there is no "start again" setting — starting
 again means a new group id. In a demo that gets re-run this shows up as "the cell returned nothing
 the second time" rather than as an error.
+
+**`Remove-KfkTopic` takes `-Instance`, not `-Connection`, and that follows from the two connect
+functions.** Deleting a topic is neither producing nor consuming, so neither client is the right
+thing to hand over; it builds its own admin client, which is where the .NET client keeps operations
+of this kind. `docker/photoservice-app.ps1` calls it next to `Remove-MdbCollection` when it clears
+the previous run — the application restarts its ids at 1, so a topic that outlived the tables would
+hold several customers with id 1 and `demo/06_eventstreaming.ps1` would replay all of them into one
+primary key. It waits for the topic to disappear rather than returning on the broker's
+acknowledgement, because the caller's next message would otherwise simply recreate it.
 
 ### Object storage and drivers
 
@@ -246,7 +256,7 @@ provider:
 | File → table | ✔ `Import-SqlTable` | ✔ `Import-OraTable` | ✔ `Import-PgTable` | — | — | — |
 | Table → file | ✔ `Export-SqlTable` | ✔ `Export-OraTable` | ✔ `Export-PgTable` | — | — | — |
 | Column metadata | ✔ `Get-SqlTableInformation` | ✔ `Get-OraTableInformation` | ✔ `Get-PgTableInformation` | — | — | — |
-| Drop | — | — | — | ✔ `Remove-MdbCollection` | — | ✔ `Remove-MioFile` |
+| Drop | — | — | — | ✔ `Remove-MdbCollection` | ✔ `Remove-KfkTopic` | ✔ `Remove-MioFile` |
 | Whole files | — | — | — | — | — | ✔ `Get-MioFile`, `Get-MioFileList`, `Set-MioFile` |
 | Load the driver | — | ✔ `Import-OraLibrary` | ✔ `Import-PgLibrary` | — | ✔ `Import-KfkLibrary` | — |
 

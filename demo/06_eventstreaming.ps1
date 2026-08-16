@@ -12,11 +12,16 @@ break
 # thing that added them - and it can say so, once, on a log that anybody may read at their own speed.
 #
 # GIVE THE SHOP TWO MINUTES BEFORE RUNNING THIS. docker/photoservice-app.ps1 truncates its tables
-# when it starts and then staggers its work: a customer every six seconds, the first order after
-# 60, the first payment after 90, the first shipment after 120. Run this straight after
-# "docker compose up -d" and the topic holds nothing but "Added customer", order_event is empty,
-# and every count below is zero - not because anything is broken, but because nothing has happened
-# yet. "docker compose logs -f photoservice" shows how far along it is.
+# and empties the topic when it starts, and then staggers its work: a customer every six seconds,
+# the first order after 60, the first payment after 90, the first shipment after 120. Run this
+# straight after "docker compose up -d" and the topic holds nothing but "Added customer",
+# order_event is empty, and every count below is zero - not because anything is broken, but
+# because nothing has happened yet. "docker compose logs -f photoservice" shows how far along it is.
+#
+# The topic being emptied too is what keeps the log and the database describing the same run. It
+# used to survive, and because the application restarts its ids at 1, three restarts left three
+# customers with id 1 on the topic and the replay at the end of this script died on a primary key
+# violation.
 
 $ErrorActionPreference = 'Stop'
 
@@ -39,9 +44,15 @@ $PSDefaultParameterValues = @{
 
 # There is a table in this database that nothing in demos 1 to 5 has ever read.
 #
-# order_event gets a row every time an order is paid for or shipped. The application writes it in
-# the same transaction as the change itself, which is what makes it trustworthy: if the order did
-# not happen, neither did the row.
+# order_event gets a row every time an order is paid for or shipped, written by the thing that did
+# the paying and the shipping rather than worked out afterwards by comparing two databases.
+#
+# Note what this application does NOT do, because it is the point of the pattern. The
+# UPDATE order_header and the INSERT INTO order_event are two separate statements here, each
+# committing on its own - so a crash between them leaves the order paid and no row to say so. A
+# real outbox puts both in one transaction, and that is what makes it trustworthy: if the order
+# did not happen, neither did the row. Worth saying out loud, because the fix is one line and the
+# bug is invisible until the day it is not.
 
 Invoke-PgQuery -Query 'SELECT * FROM order_event ORDER BY id DESC LIMIT 5' | Format-Table
 
@@ -154,8 +165,9 @@ function Invoke-LoggingEvent {
 # The consumer reads from where it last stopped, applies what it gets, and then counts what is in
 # the target. -First 60 is the stopping rule, and a log needs one - it has no end of its own.
 #
-# This consumer was created with -FromBeginning and the shop has been running for a while, so it
-# starts at the beginning of the topic rather than at its end. There is a backlog, and it works
+# This consumer's group was created with -FromBeginning, so it began at the start of the topic
+# rather than at its end - though it is five messages in by now, because the section above already
+# read that many. The shop has been running for a while, so there is a backlog, and it works
 # through it 60 at a time.
 $events = Read-KfkTopic -Connection $consumer -Topic $photoservice.KfkTopic -First 60
 foreach ($loggingEvent in $events) { Invoke-LoggingEvent -LoggingEvent $loggingEvent }
@@ -170,7 +182,10 @@ Invoke-SqlQuery -Query $countQuery | Format-Table
 #
 # * "applied ..." is the increment - what this one call did. It says exactly 60 because 60 is the
 #   cap and there is still a backlog behind it. Once the consumer catches up with the end of the
-#   topic it drops to a handful: whatever the shop managed while you were reading this.
+#   topic it drops to a handful: whatever the shop managed while you were reading this. Measured:
+#   the shop produces about 3.5 events a second, so 60 per press only gains ground if the presses
+#   come closer together than every 17 seconds - read this paragraph aloud between two of them and
+#   the backlog wins.
 # * The counts are totals in the target. They only ever go up, because that is what a target does.
 #
 # That is the offset at work. The consumer committed its position as it read, so each call starts
@@ -196,6 +211,11 @@ Invoke-SqlQuery -Query $countQuery | Format-Table
 # The tables have rows in them from the run above, and replaying an insert onto a row that is
 # already there is a primary key violation. Replay is only worth anything if applying an event
 # twice is safe - here that is bought the blunt way, by starting from empty.
+#
+# Emptying the target is only half of it, though, and the other half is upstream: the topic has to
+# hold each id once. It does because the application empties it at startup, when it also restarts
+# those ids at 1. Leave the topic to accumulate across restarts and no amount of truncating here
+# saves you - the duplicates are in the log itself.
 Invoke-SqlQuery -Query 'TRUNCATE TABLE dbo.customer'
 Invoke-SqlQuery -Query 'TRUNCATE TABLE dbo.order_header'
 Invoke-SqlQuery -Query 'TRUNCATE TABLE dbo.order_detail'

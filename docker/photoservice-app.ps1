@@ -56,9 +56,14 @@ Invoke-PgQuery -Connection $dbConfig.PgConnection -Query "TRUNCATE TABLE order_d
 Invoke-PgQuery -Connection $dbConfig.PgConnection -Query "TRUNCATE TABLE order_header"
 Invoke-PgQuery -Connection $dbConfig.PgConnection -Query "TRUNCATE TABLE customer"
 Remove-MdbCollection -Connection $dbConfig.MdbConnection -Collection Orders
-# The topic is deliberately not emptied. The bucket was, because a log archive that outlives the
-# tables it describes is just confusing - but a topic keeps its history on purpose, and demo 6
-# reads across restarts. The offsets, not the topic, are what a reader starts from.
+# The topic goes with the tables, and this line used to say the opposite - that a topic keeps its
+# history on purpose. It does, but not across restarts of the thing that writes it: the ids start
+# again at 1 here, so a topic that survives holds three customers with id 1 and demo 6's replay
+# dies on a primary key violation. Emptying it makes the reset complete rather than half done.
+#
+# The history demo 6 teaches is across *readers*, not across application starts, and that is
+# untouched: a new group id still replays the whole topic, and the offsets are per group.
+Remove-KfkTopic -Instance $dbConfig.KfkInstance -Topic $topic
 
 
 Write-PSFMessage -Level Host -Message 'Reading photo data'
@@ -115,8 +120,15 @@ $newShipment = @{
 #
 # Local time is a deliberate choice for a demo - the clock on the wall is the clock on the slide.
 # The Timestamp of the logging event below stays UTC, because the sibling's is UTC too.
+#
+# And it is truncated to milliseconds, because that is what the columns are. [datetime]::Now has
+# a hundred nanoseconds of resolution, TIMESTAMP(3) keeps three digits and rounds - so the topic
+# carried 09:46:49.0523691 while PostgreSQL held 09:46:49.052, and a replay through demo 6 landed
+# a different value in SQL Server than the direct transfer in demo 4 did. Sub-millisecond, on
+# every row. Handing over what the column can actually store removes the question.
 function Get-LocalTimestamp {
-    [datetime]::SpecifyKind([datetime]::Now, 'Unspecified')
+    $now = [datetime]::Now
+    [datetime]::SpecifyKind($now.AddTicks(-($now.Ticks % [timespan]::TicksPerMillisecond)), 'Unspecified')
 }
 
 
@@ -210,12 +222,17 @@ while ($true) {
         $transaction = $dbConfig.PgConnection.BeginTransaction()
 
         Write-PgTable -Connection $dbConfig.PgConnection -Table order_header -Data $orderHeader -Transaction $transaction
-        Add-LoggingEvent -Component Order -Message 'Added order header' -Details $orderHeader
-
         Write-PgTable -Connection $dbConfig.PgConnection -Table order_detail -Data $orderDetails -Transaction $transaction
-        Add-LoggingEvent -Component Order -Message 'Added order details' -Details $orderDetails
 
         $transaction.Commit()
+
+        # Announced after the commit, not before it. An event that says a thing happened, sent
+        # while the transaction that did it could still roll back, is the oldest mistake in this
+        # subject - and demo 6 is about believing these events. Measured before this moved: the
+        # topic held 242 order headers and PostgreSQL 241, because the application was stopped
+        # between the two.
+        Add-LoggingEvent -Component Order -Message 'Added order header' -Details $orderHeader
+        Add-LoggingEvent -Component Order -Message 'Added order details' -Details $orderDetails
 
         $customer = Invoke-PgQuery -Connection $dbConfig.PgConnection -Query 'SELECT * FROM customer WHERE id = :id' -ParameterValues @{ id = $orderHeader.customer_id }
         $price = 0

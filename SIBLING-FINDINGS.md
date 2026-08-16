@@ -306,6 +306,28 @@ tables compared to PostgreSQL row by row — 156 customers, 766 order headers an
 **0 differences** on every column, with 742 payment and 717 shipment uuids actually compared so the
 fold was doing work. The narration has not been stepped through by the owner yet.
 
+**Correction, 2026-08-16: "0 differences on every column" did not reproduce, and two defects were
+behind it.** Re-run against a fresh install, the four non-timestamp columns of `order_header` agreed
+exactly and the two timestamp columns did not — **241 of 241** `created_at` and **215 of 241**
+`updated_at`, every one by less than a millisecond, because the topic carried
+`09:46:49.0523691` where `TIMESTAMP(3)` held `09:46:49.052`. Whatever the original run compared, it
+was not those two columns at full precision. Separately, the replay could not be run at all on a
+topic that had seen more than one application start: three starts left 16 duplicate customer ids and
+`Write-SqlTable` failed with `Violation of PRIMARY KEY constraint 'customer_pk'`.
+
+Both are fixed — `Get-LocalTimestamp` truncates to milliseconds and `Remove-KfkTopic` empties the
+topic at startup, on both sides — and the check was re-run with no tolerance: 30 customers, 107 order
+headers, 1539 order details, **0 differences on all six columns**, with 81 payment uuids, 55 shipment
+uuids and 81 non-NULL `updated_at` values actually compared. The numbers are smaller than the
+originals only because the shop had been running for minutes rather than an hour; they are not
+reproducible figures and should not be quoted as such.
+
+**Also found and fixed while there:** the two order events were produced to the topic *inside* the
+transaction that wrote the order, before the commit. Observed live — 242 order headers on the topic
+against 241 in PostgreSQL, because the application was stopped in that window. The sibling's
+`photoservice-app.py` had always announced after the commit and carried a comment saying why; this
+side now matches it.
+
 ---
 
 # Open
