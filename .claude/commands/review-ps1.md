@@ -21,7 +21,7 @@ These are deliberate. Reporting them is noise:
 - Unused variables, repeated re-imports and `Format-Table` / `Out-GridView` calls in `demo/*.ps1`
 - The bare `break` on line 1 of the numbered demo scripts
 - Missing comment-based help
-- Anything listed as known state in the `Current state` table of `AGENTS.md`, or as an open entry in
+- Anything listed as known state in the `Current state` table of `AGENTS.md`, or as an entry in
   `SIBLING-FINDINGS.md` — those are decisions, not discoveries
 
 ## Do report, in this order
@@ -32,8 +32,7 @@ These are deliberate. Reporting them is noise:
 2. **Divergence from the Python sibling.** The counterpart lives in
    `../Python-moves-Data-around/lib/`, if that repository is checked out next to this one. A guard
    clause, a wait or a `-Force` switch present there and missing here is a finding unless the
-   difference is inherent to the language. That repository has been driven against live containers
-   more recently than this one, so where the two disagree it is usually the one that is right.
+   difference is inherent to the language.
 3. **`$_.Exception.InnerException.Message` in a `try` block that only calls cmdlets.** It is correct for
    .NET method calls, which PowerShell wraps in a `MethodInvocationException`, but a cmdlet failure has
    no wrapper, so `InnerException` is null and the message renders with no cause at all.

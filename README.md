@@ -42,7 +42,7 @@ The code is both tested on Windows 11 and an Ubuntu WSL2.
 
 **The setup installs into WSL2 and into this repository. It installs nothing on your machine and
 changes nothing about how your machine is configured** - in particular it does not make the PSGallery
-a trusted repository for you, which it used to do and which is not this repository's decision to make.
+a trusted repository for you, which is not this repository's decision to make.
 
 Your machine needs three things, and that is the whole list:
 
@@ -142,9 +142,6 @@ This scenario needs PowerShell 7.
 - Transactions are used to ensure data integrity
 - Change Data Capture is used to find what changed
 
-The application's own events used to be read back from a MinIO bucket in this scenario. They are on
-a Kafka topic now, and that half of the demo has become its own scenario - see Event streaming below.
-
 This scenario needs PowerShell 7.
 
 The application container is the source of every customer and order the second half of this demo
@@ -204,16 +201,16 @@ The initial PowerShell code must be run inside WSL2 to set up the sample data.
 
 The demo PowerShell code can be executed either inside WSL2 or on the Windows 11 system. However, to run all demos, PowerShell 7.5 or later is required.
 
-A video of the installation is available here: https://youtu.be/0NNNqPau4Go — note that it predates the
-split described below, and shows `start_containers.ps1`, which is now `start_demo.ps1`.
+A video of the installation is available here: https://youtu.be/0NNNqPau4Go — it shows
+`start_containers.ps1`, which is now `start_demo.ps1`.
 
 
 ### Sharing one WSL2 installation with the sibling repository
 
 Both repositories are meant to live in the same WSL2 installation. Neither one names a distribution, so
 both use the default - install Ubuntu once, then run `01_setup.ps1` in each repository. The second run
-finds docker and 7-Zip already there and only does its own half. Expect Oracle's first start twice,
-though, once per repository: the volumes belong to the stack, not to the machine.
+finds docker and 7-Zip already there and only does its own half. The volumes belong to the stack rather
+than to the machine, so each repository builds its own.
 
 `01_setup.ps1` **sets the machine up, it does not start a demo.** It stops the containers again at the
 end, which is what makes running it in both repositories possible: the other setup would otherwise find
@@ -221,8 +218,7 @@ these containers holding every port it wants.
 
 To demo, run `start_demo.ps1`. Both repositories publish the same ports, so only one stack can run at a
 time, and `start_demo.ps1` stops the other one for you before starting its own. That is a stop and not
-a `down`, so the volumes on both sides survive - switching back and forth costs a minute, not another
-Oracle start.
+a `down`, so the volumes on both sides survive - switching back and forth costs a minute.
 
 Why it stops the other stack rather than letting the ports collide: both repositories use the same
 ports, the same password *and* the same database names. A port conflict would at least be loud. Instead
@@ -237,8 +233,7 @@ wsl --user root docker compose ls
 
 **One small thing about switching.** It restarts the PhotoService container, which truncates its tables
 and restarts its schedule - so demos 04 and 06 are empty for the first two minutes after every
-switch, on whichever side you switch to. That used to be twenty minutes and used to decide the running
-order of a whole session; now it is roughly as long as the containers take to come up anyway.
+switch, on whichever side you switch to.
 
 
 ### Install WSL2
@@ -311,10 +306,8 @@ A failure in the connection test from Windows does not stop the script before th
 script reports the failure once the containers are down, and `start_demo.ps1` brings them back in a
 minute if you want to look into it.
 
-The whole run takes about half an hour, nearly all of it Oracle starting for the first time. That is
-the price of the volumes, and it is paid once per repository - see
-[Sharing one WSL2 installation with the sibling repository](#sharing-one-wsl2-installation-with-the-sibling-repository)
-if you are installing both.
+The whole run takes about half an hour. If you are installing both repositories, see
+[Sharing one WSL2 installation with the sibling repository](#sharing-one-wsl2-installation-with-the-sibling-repository).
 
 
 ### Start the demo
@@ -360,18 +353,14 @@ wsl --cd "$PWD\docker" --user root docker compose down -v
 
 `-v` is the whole point - it removes the named volumes, and that is what actually deletes the data.
 Without it you get the restart described above. With it, every container starts empty and re-runs its
-init scripts, so all five scenarios' databases are created again exactly as the setup made them.
+init scripts, so all five scenario databases are created again exactly as the setup made them.
 
-**It costs about two minutes**, measured on 2026-08-16: the Oracle image ships a prebuilt database
-rather than creating one on first start, so there is no long rebuild to avoid. This used to be
-described as something close to a disaster, on the assumption that it meant another quarter of an hour
-of Oracle. It does not. Use it whenever you want a genuinely clean lab - the only thing it costs you is
-whatever you had not saved.
+**It costs about two minutes**, because the Oracle image ships a prebuilt database rather than creating
+one on first start. It does not re-download the images. Use it whenever you want a genuinely clean lab -
+the only thing it costs you is whatever you had not saved.
 
 It is also the only way to pick up a change to the init SQL under `docker/`, because those scripts run
 only when a volume is created.
-
-This costs another Oracle start, so budget about fifteen minutes. It does not re-download the images.
 
 
 ### When something cannot connect

@@ -4,24 +4,18 @@ The known-good numbers of `AGENTS.md`, made runnable.
 
 **This is not a test suite.** There is no Pester, no framework, no CI, no fixtures and no mocking, and
 `01_setup.ps1` does not call any of it. These are plain scripts that drive the shipped `lib/`
-functions against the live containers and print `PASS` or `FAIL` per fact. They exist because the
-alternative — every agent writing the same checks again in a scratchpad and throwing them away — has
-a cost that took a while to become obvious.
+functions against the live containers and print `PASS` or `FAIL` per fact.
 
 ## Why this folder exists
 
 `AGENTS.md` says *"Reproduce these rather than inventing a new check"* and then gives the numbers as
-prose. Three things follow from that, and all three actually happened:
+prose. Three things follow from that, and all three have happened:
 
 - **The checks get rewritten every session, differently.** Whether a run is comparable to the last one
   becomes a matter of reading two transcripts.
-- **The checks have bugs, and a throwaway check takes its bugs with it.** Building this folder found
-  three in one afternoon: a `-is [DBNull]` guard that missed the `$null` the SQL Server driver
-  actually returns, a set of failure patterns where `convert|int` matched three of four messages
-  including the `int` inside `constraint`, and a Badges import missing the `-ColumnMap` the demo
-  passes. Each read as a defect in the repository for a few minutes.
-- **A recorded number can stop being true without anyone noticing.** On 2026-08-16 entry 10's
-  *"0 differences on every column"* turned out not to reproduce. Prose cannot fail; a script can.
+- **The checks have bugs, and a throwaway check takes its bugs with it.** The bugs found while building
+  this folder each read as a defect in the repository for a few minutes.
+- **A recorded number can stop being true without anyone noticing.** Prose cannot fail; a script can.
 
 ## Running it
 
@@ -70,10 +64,8 @@ drives underneath is always the shipped function.
 **Assert the preconditions, or the comparison measures nothing.** Every value comparison here is
 preceded by a check that there was something to compare: that 12179 of 12220 `LastAccessDate` values
 really do carry milliseconds, that no photo is `NULL` before the MD5s are taken, that payment uuids
-were actually compared so the fold was doing work. Three checks passed for the wrong reason in a
-single session on 2026-08-15 — one compared failure counts while the membership moved, one compared
-MD5 hashes that were `NULL` on both sides, one asserted a row count copied out of the documentation.
-**Before adding a `Test-Fact`, ask what it would print if the thing under test were absent.**
+were actually compared so the fold was doing work. **Before adding a `Test-Fact`, ask what it would
+print if the thing under test were absent.**
 
 **Do not assert a number nobody measured.** `AGENTS.md` records the known-good numbers; anything else
 is printed rather than asserted. Two cases in particular:
