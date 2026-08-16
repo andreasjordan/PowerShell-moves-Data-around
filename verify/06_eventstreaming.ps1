@@ -109,6 +109,44 @@ try {
     Start-Sleep -Seconds 3
 
     try {
+        ######################################################################
+        # The outbox, which is demo 6's first section
+        ######################################################################
+
+        # order_event and the order_header column it describes are written in one transaction, so
+        # they agree in both directions. Two separately committed statements would agree too, most
+        # of the time - the difference only shows on the row where the process died between them,
+        # which is why the check runs with the shop stopped rather than mid-flight.
+        $orphans = Invoke-PgQuery -Connection $pg -Query 'SELECT COUNT(*) FROM order_event WHERE order_id IS NULL' -As SingleValue
+        Test-Fact -Name 'no order_event row has a NULL order_id' -Ok ($orphans -eq 0) -Detail "$orphans orphan(s)"
+
+        foreach ($kind in 'payment', 'shipment') {
+            $column = "${kind}_uuid"
+
+            # Preconditions first. Both directions below are satisfied by an empty table, so without
+            # this the two facts that follow would be green on a shop that had written nothing.
+            $events = Invoke-PgQuery -Connection $pg -Query "SELECT COUNT(*) FROM order_event WHERE $column IS NOT NULL" -As SingleValue
+            Test-Fact -Name "there are $kind rows in the outbox to check" -Ok ($events -gt 0) -Detail "$events rows"
+
+            $eventWithoutChange = Invoke-PgQuery -Connection $pg -As SingleValue -Query @"
+SELECT COUNT(*) FROM order_event e
+WHERE e.$column IS NOT NULL
+  AND NOT EXISTS (SELECT 1 FROM order_header h WHERE h.id = e.order_id AND h.$column = e.$column)
+"@
+            Test-Fact -Name "every $kind in the outbox has the matching order_header" -Ok ($eventWithoutChange -eq 0) -Detail "$eventWithoutChange without"
+
+            $changeWithoutEvent = Invoke-PgQuery -Connection $pg -As SingleValue -Query @"
+SELECT COUNT(*) FROM order_header h
+WHERE h.$column IS NOT NULL
+  AND NOT EXISTS (SELECT 1 FROM order_event e WHERE e.order_id = h.id AND e.$column = h.$column)
+"@
+            Test-Fact -Name "every $kind order_header has the matching outbox row" -Ok ($changeWithoutEvent -eq 0) -Detail "$changeWithoutEvent without"
+        }
+
+        ######################################################################
+        # The topic
+        ######################################################################
+
         $scan = Connect-KfkConsumer -Instance $photoservice.KfkInstance -GroupId "verify-scan-$(Get-Random)" -FromBeginning
         $partition = [Confluent.Kafka.TopicPartition]::new($photoservice.KfkTopic, 0)
         $watermark = $scan.QueryWatermarkOffsets($partition, [timespan]::FromSeconds(10))

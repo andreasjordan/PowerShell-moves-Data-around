@@ -286,8 +286,16 @@ while ($true) {
                 PaymentUuid = New-Guid
                 UpdatedAt   = Get-LocalTimestamp
             }
-            Invoke-PgQuery -Connection $dbConfig.PgConnection -Query 'UPDATE order_header SET updated_at = :updated_at, payment_uuid = :payment_uuid WHERE id = :id' -ParameterValues @{ updated_at = $payment.UpdatedAt ; payment_uuid = $payment.PaymentUuid ; id = $payment.OrderId }
-            Invoke-PgQuery -Connection $dbConfig.PgConnection -Query 'INSERT INTO order_event (order_id, updated_at, payment_uuid) VALUES (:order_id, :updated_at, :payment_uuid)' -ParameterValues @{ order_id = $payment.OrderId ; updated_at = $payment.UpdatedAt ; payment_uuid = $payment.PaymentUuid }
+            # The change and the outbox row are one unit of work, and that is the whole point of an
+            # outbox: if the order was not paid for, there is no row claiming it was. These used to
+            # be two separate autocommitted statements, so a crash between them left a paid order
+            # with nothing to say so - and demo 6 had to explain the gap instead of the pattern.
+            $transaction = $dbConfig.PgConnection.BeginTransaction()
+            Invoke-PgQuery -Connection $dbConfig.PgConnection -Query 'UPDATE order_header SET updated_at = :updated_at, payment_uuid = :payment_uuid WHERE id = :id' -ParameterValues @{ updated_at = $payment.UpdatedAt ; payment_uuid = $payment.PaymentUuid ; id = $payment.OrderId } -Transaction $transaction
+            Invoke-PgQuery -Connection $dbConfig.PgConnection -Query 'INSERT INTO order_event (order_id, updated_at, payment_uuid) VALUES (:order_id, :updated_at, :payment_uuid)' -ParameterValues @{ order_id = $payment.OrderId ; updated_at = $payment.UpdatedAt ; payment_uuid = $payment.PaymentUuid } -Transaction $transaction
+            $transaction.Commit()
+
+            # After the commit, for the reason the order block above gives
             Add-LoggingEvent -Component Payment -Message 'Added payment' -Details $payment
         }
 
@@ -307,8 +315,12 @@ while ($true) {
                 ShipmentUuid = New-Guid
                 UpdatedAt    = Get-LocalTimestamp
             }
-            Invoke-PgQuery -Connection $dbConfig.PgConnection -Query 'UPDATE order_header SET updated_at = :updated_at, shipment_uuid = :shipment_uuid WHERE id = :id' -ParameterValues @{ updated_at = $shipment.UpdatedAt ; shipment_uuid = $shipment.ShipmentUuid ; id = $shipment.OrderId }
-            Invoke-PgQuery -Connection $dbConfig.PgConnection -Query 'INSERT INTO order_event (order_id, updated_at, shipment_uuid) VALUES (:order_id, :updated_at, :shipment_uuid)' -ParameterValues @{ order_id = $shipment.OrderId ; updated_at = $shipment.UpdatedAt ; shipment_uuid = $shipment.ShipmentUuid }
+            # One unit of work, the same as the payment block above
+            $transaction = $dbConfig.PgConnection.BeginTransaction()
+            Invoke-PgQuery -Connection $dbConfig.PgConnection -Query 'UPDATE order_header SET updated_at = :updated_at, shipment_uuid = :shipment_uuid WHERE id = :id' -ParameterValues @{ updated_at = $shipment.UpdatedAt ; shipment_uuid = $shipment.ShipmentUuid ; id = $shipment.OrderId } -Transaction $transaction
+            Invoke-PgQuery -Connection $dbConfig.PgConnection -Query 'INSERT INTO order_event (order_id, updated_at, shipment_uuid) VALUES (:order_id, :updated_at, :shipment_uuid)' -ParameterValues @{ order_id = $shipment.OrderId ; updated_at = $shipment.UpdatedAt ; shipment_uuid = $shipment.ShipmentUuid } -Transaction $transaction
+            $transaction.Commit()
+
             Add-LoggingEvent -Component Shipment -Message 'Added shipment' -Details $shipment
         }
 

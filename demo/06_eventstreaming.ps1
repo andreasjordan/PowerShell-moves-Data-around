@@ -47,12 +47,14 @@ $PSDefaultParameterValues = @{
 # order_event gets a row every time an order is paid for or shipped, written by the thing that did
 # the paying and the shipping rather than worked out afterwards by comparing two databases.
 #
-# Note what this application does NOT do, because it is the point of the pattern. The
-# UPDATE order_header and the INSERT INTO order_event are two separate statements here, each
-# committing on its own - so a crash between them leaves the order paid and no row to say so. A
-# real outbox puts both in one transaction, and that is what makes it trustworthy: if the order
-# did not happen, neither did the row. Worth saying out loud, because the fix is one line and the
-# bug is invisible until the day it is not.
+# And it is written in the same transaction as the change itself - one BeginTransaction around the
+# UPDATE order_header and the INSERT INTO order_event, in docker/photoservice-app.ps1. That is what
+# makes an outbox trustworthy rather than merely convenient: the row and the thing it describes
+# commit together, so there is no window in which the order is paid for and nothing says so.
+#
+# It is worth pointing at, because it is the part people leave out. Two autocommitted statements
+# look identical in every demo and differ only on the day the process dies between them - and this
+# application did exactly that until 2026-08-16.
 
 Invoke-PgQuery -Query 'SELECT * FROM order_event ORDER BY id DESC LIMIT 5' | Format-Table
 
