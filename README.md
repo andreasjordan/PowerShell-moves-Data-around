@@ -308,11 +308,11 @@ A failure in the connection test from Windows does not stop the script before th
 script reports the failure once the containers are down, and `start_demo.ps1` brings them back in a
 minute if you want to look into it.
 
-The whole run takes about ten to fifteen minutes - measured at 12:05 on a reinstalled WSL2, with the
-SQL Server and Oracle images loaded from local tars and the sample data already downloaded. A
-genuinely fresh clone pulls those two images from their registries and downloads about 15 MB of
-sample data as well, so allow more. The last line of the script reports the total, which is the
-number to trust on your machine.
+The whole run takes about ten to fifteen minutes - measured at 12:05 and 11:17 on two reinstalled
+WSL2 installations, with the SQL Server and Oracle images loaded from local tars and the sample data
+already downloaded. A genuinely fresh clone pulls those two images from their registries and
+downloads about 15 MB of sample data as well, so allow more. The last line of the script reports the
+total, which is the number to trust on your machine.
 
 If you are installing both repositories, see
 [Sharing one WSL2 installation with the sibling repository](#sharing-one-wsl2-installation-with-the-sibling-repository).
