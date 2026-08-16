@@ -13,10 +13,10 @@ $ErrorActionPreference = 'Stop'
 wsl --cd $PSScriptRoot --user root ./04_docker_compose.sh
 if ($LASTEXITCODE -ne 0) { throw 'failure in 04_docker_compose.sh'}
 
-# The photoservice container restarts with the rest, which truncates its tables and restarts its
-# schedule: the first order is ten minutes from now, the first payment fifteen, the first shipment
-# twenty. The PhotoService demo is empty until then, and that looks broken when it is not.
-Write-Warning 'demo 04 needs the photoservice application to have been running for twenty minutes'
+# The photoservice container restarts with the rest, which truncates its tables, empties the Kafka
+# topic and restarts its schedule: the first order is 60 seconds from now, the first payment 90, the
+# first shipment 120. Demos 04 and 06 are empty until then, and that looks broken when it is not.
+Write-Warning 'demos 04 and 06 need the photoservice application to have been running for two minutes'
 
 # Run WSL2 to keep docker containers running
 # If you exit this shell, WSL2 shuts down and takes the containers with it.

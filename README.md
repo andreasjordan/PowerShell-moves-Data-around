@@ -236,7 +236,7 @@ wsl --user root docker compose ls
 ```
 
 **One small thing about switching.** It restarts the PhotoService container, which truncates its tables
-and restarts its schedule - so the PhotoService demo is empty for the first two minutes after every
+and restarts its schedule - so demos 04 and 06 are empty for the first two minutes after every
 switch, on whichever side you switch to. That used to be twenty minutes and used to decide the running
 order of a whole session; now it is roughly as long as the containers take to come up anyway.
 
@@ -341,15 +341,15 @@ Both commands below are run from the repository directory, and both need the con
 they talk to the docker daemon inside WSL2. If WSL2 has been shut down, run `start_demo.ps1` first,
 because that is what starts the daemon.
 
-**Just the PhotoService application.** This is what the PhotoService demo needs, and it costs seconds:
+**Just the PhotoService application.** This is what demos 04 and 06 need, and it costs seconds:
 
 ```
 wsl --cd "$PWD\docker" --user root docker compose restart photoservice
 ```
 
-The application clears its own PostgreSQL tables and its MongoDB collection when it starts, so this puts
-it back to nothing. It also restarts the clock: the first order is scheduled 60 seconds later, the
-first payment at 90, the first shipment at 120.
+The application clears its own PostgreSQL tables and its MongoDB collection when it starts, and empties
+the Kafka topic, so this puts it back to nothing. It also restarts the clock: the first order is
+scheduled 60 seconds later, the first payment at 90, the first shipment at 120.
 
 **Everything, back to how the setup left it:**
 
