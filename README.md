@@ -69,6 +69,7 @@ you like:
 
 | Path | Content |
 | --- | --- |
+| `00_check_host.ps1` | Checks that this machine has what the setup will not install, and names anything missing. Changes nothing, so it is safe to run at any time. |
 | `01_setup.ps1` … `06_test_connections.ps1` | The setup steps. `01_setup.ps1` runs all of them. It builds the environment; it does not start a demo. |
 | `07_check_ports.ps1` | Not a setup step. Checks whether Windows can reach the container ports, for when something cannot connect. |
 | `modules.txt` | The list of PowerShell modules the demos need. Both installs read it. |
@@ -77,6 +78,7 @@ you like:
 | `demo/` | The demo scripts, plus an `init_<scenario>.ps1` per scenario that opens the needed connections. |
 | `docker/` | The compose file, the database init scripts and the PhotoService application. |
 | `lib/` | The functions that do the actual work. See [lib/README.md](lib/README.md) for an overview. |
+| `verify/` | Scripts that check the demos still do what they claim, against the running containers. Not a test suite and not part of the setup — see [verify/README.md](verify/README.md). Run `.\verify\Invoke-Verify.ps1` when you want to know that everything still works. |
 
 
 
