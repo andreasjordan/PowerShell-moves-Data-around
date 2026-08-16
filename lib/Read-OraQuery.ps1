@@ -16,11 +16,14 @@ function Read-OraQuery {
 
     if ($null -ne $ParameterValues) {
         Write-PSFMessage -Level Verbose -Message "Adding parameters to command"
+        $command.BindByName = $true
         foreach ($parameterName in $ParameterValues.Keys) {
             $parameter = $command.CreateParameter()
             $parameter.ParameterName = $parameterName
             if (($null -ne $ParameterTypes) -and ($null -ne $ParameterTypes[$parameterName])) {
-                $parameter.SqlDbType = $ParameterTypes[$parameterName]
+                $parameter.OracleDbType = $ParameterTypes[$parameterName]
+            } elseif ($ParameterValues[$parameterName].Length -gt 4000) {
+                $parameter.OracleDbType = 'CLOB'
             }
             $parameter.Value = $ParameterValues[$parameterName]
             if ($null -eq $parameter.Value) {

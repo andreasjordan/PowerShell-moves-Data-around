@@ -20,7 +20,7 @@ function Read-PgQuery {
             $parameter = $command.CreateParameter()
             $parameter.ParameterName = $parameterName
             if (($null -ne $ParameterTypes) -and ($null -ne $ParameterTypes[$parameterName])) {
-                $parameter.SqlDbType = $ParameterTypes[$parameterName]
+                $parameter.NpgsqlDbType = $ParameterTypes[$parameterName]
             }
             $parameter.Value = $ParameterValues[$parameterName]
             if ($null -eq $parameter.Value) {
