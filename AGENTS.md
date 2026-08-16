@@ -32,13 +32,15 @@ probably right. If it adds abstraction, indirection or defensive layers, it is p
 
 ## Current state — read this before assuming anything works
 
-All five scenarios work and have been presented, and a sixth - Event streaming - was added on 2026-08-15 and has not been presented yet. What follows is what is *known* and unfinished, so
+All five scenarios work and have been presented. A sixth - Event streaming - was added on 2026-08-15
+and stepped through by the owner on 2026-08-16, on both sides; it has not been presented to an
+audience yet. What follows is what is *known* and unfinished, so
 that it is not rediscovered as a new finding and not fixed as a side effect of an unrelated task.
 
 | Area | State |
 | --- | --- |
 | `demo/01_timesheets.ps1` … `05_projectstatus.ps1` | Complete. Stepped through section by section, never run. |
-| `demo/06_eventstreaming.ps1` | New on 2026-08-15 and **still not stepped through by the owner**. Its logic was run end to end against live containers and the replay was compared value by value against PostgreSQL. The narration was reviewed line by line on 2026-08-16 and four claims were corrected — the outbox transaction, "starts at the beginning of the topic", "it catches up", and what makes replay safe — but it has still not been read aloud once. |
+| `demo/06_eventstreaming.ps1` | New on 2026-08-15, and **stepped through by the owner on 2026-08-16 — it worked as expected**. Its logic had already been run against live containers and the replay compared value by value against PostgreSQL; the narration was then reviewed line by line and four claims corrected — the outbox transaction, "starts at the beginning of the topic", "it catches up", and what makes replay safe. The walkthrough is what confirmed those corrections read correctly. Not yet presented to an audience. |
 | `lib/` | 41 functions. The grid in `lib/README.md` says which cells are deliberately empty. |
 | The setup chain | `01_setup.ps1` **builds only** — it stops the containers at the end, so it can be run in this repository and then in the sibling, in either order. `start_demo.ps1` is what starts a demo. See "01_setup.ps1 builds, start_demo.ps1 runs" below. |
 | `06_test_connections.ps1` | Run **twice** by `01_setup.ps1`: once inside WSL2 and once on Windows, because the demos run from Windows and nothing else checks that side. One block per scenario and per provider. |
