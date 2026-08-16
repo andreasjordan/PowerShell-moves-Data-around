@@ -47,7 +47,7 @@ Write-Step -Message 'Shutting WSL2 down, which docker needs'
 wsl --shutdown
 
 # Start docker containers
-Write-Step -Message 'Starting the containers and waiting for the demo databases' -Duration 'up to fifteen minutes the first time - Oracle is almost all of it'
+Write-Step -Message 'Starting the containers and waiting for the demo databases' -Duration 'about two minutes, measured - the 15 minute timeout in 04 is a margin, not an expectation'
 wsl --cd $PSScriptRoot --user root ./04_docker_compose.sh
 if ($LASTEXITCODE -ne 0) { throw 'failure in 04_docker_compose.sh'}
 
