@@ -74,6 +74,10 @@ Scripts that *are* meant to run: the numbered scripts in the repository root, `s
 read-only diagnostic and it is safe for an agent to run: it opens and closes TCP connections from
 Windows and starts nothing.
 
+`00_check_host.ps1` **is** the first step of the setup sequence, and it is also safe for an agent to
+run on its own: it reads a version, a module list and the registry, and it installs and changes
+nothing. It does start the default WSL2 distribution, which costs a few seconds.
+
 ## The setup chain, and what is load-bearing in it
 
 Three things in `04_docker_compose.sh` exist because the failure each one prevents is silent or
@@ -103,6 +107,50 @@ shell function rather than a one-liner, because `sqlplus` takes its query on std
 
 `04` also sources `docker/.env`, so the passwords in the probes are not another copy of the literal.
 That file is valid shell as well as a Compose env file, which is why that works.
+
+### The setup owns WSL2, not your machine
+
+**The setup installs into WSL2 and into this repository's working tree. It installs nothing on the
+host and changes no host configuration.** WSL2 itself, PowerShell on Windows and the modules in
+`modules.txt` are the user's to install. This is a rule as of 2026-08-16 and it is worth keeping,
+because the alternative was a setup script that quietly ran `Set-PSRepository -Name PSGallery
+-InstallationPolicy Trusted` on the machine of anyone who cloned the repository — a decision that is
+not a demo repository's to make.
+
+`00_check_host.ps1` is how that rule stays usable. It checks what the user has to provide, names
+**every** missing piece at once with the command that installs it, and stops the setup. It changes
+nothing, so it is safe to run at any time.
+
+Three consequences worth knowing before touching the setup:
+
+- **`00_check_host.ps1` has no dependencies, deliberately.** It runs before anything is guaranteed,
+  so it imports no module and prints with `Write-Host` rather than `Write-PSFMessage` — PSFramework
+  is one of the things it is checking for. Do not "fix" that inconsistency.
+- **`03_pwsh_setup.ps1` runs twice and the two runs differ**, guarded by `if (-not $IsWindows)`. Inside
+  WSL2 it installs the modules and downloads the drivers; on Windows it only downloads the drivers.
+  It has **no `-Scope` parameter any more** — `AllUsers` is the only scope that was ever wanted, and
+  it is what lets the PhotoService container mount `/usr/local/share/powershell/Modules`.
+- **Downloading the drivers into `lib/` on Windows is not a breach of the rule.** `lib/` is inside the
+  repository, not on the machine; nothing is installed, no policy changes, and nothing is written
+  outside this directory. Doing it at setup time also keeps a 40 MB download off the moment a demo is
+  opened in front of an audience, and loading the driver afterwards is the only check that the
+  Windows side can.
+
+**It checks the default WSL2 distribution by starting it and asking Linux a question**
+(`wsl -e uname -r`), not by parsing `wsl --list --verbose`. That output is UTF-16LE on Windows and
+reading it is a well known trap; an answer that comes from inside the distribution has no such
+problem, and it proves the thing that matters — that a default distribution exists and starts.
+
+### Every step of `01_setup.ps1` announces itself
+
+`Write-Step` prints a banner before each step, and the slow ones say roughly how long they take.
+This exists because **a quiet stretch is indistinguishable from a hung script**: the first step used
+to produce no output at all while it installed modules, and `04_docker_compose.sh` is silent for up
+to fifteen minutes while Oracle creates its database. The Windows port wait prints one line per port
+for the same reason — a forward that lags the others by minutes looked exactly like a hang.
+
+`Write-Step` is defined inside `01_setup.ps1` and does not follow the `lib/` function contract,
+which says so where it is defined.
 
 ### `01_setup.ps1` builds, `start_demo.ps1` runs
 
@@ -177,14 +225,15 @@ same reason.
 
 ## Adding a dependency
 
-`modules.txt` is the one list of PowerShell modules. `03_pwsh_setup.ps1` installs it, and
-`01_setup.ps1` runs that script **twice** — `-Scope CurrentUser` on Windows and `-Scope AllUsers` inside
-WSL2, where `AllUsers` puts them in `/usr/local/share/powershell/Modules` so that the PhotoService
-container can mount them.
+`modules.txt` is the one list of PowerShell modules. It is read in two places and written in none:
+`03_pwsh_setup.ps1` installs from it **inside WSL2**, and `00_check_host.ps1` reads the same file to
+check the Windows side. Since 2026-08-16 the setup does not install modules on the host at all — see
+"The setup owns WSL2, not your machine" above.
 
 **Adding a module means adding a line to `modules.txt`. That is the whole procedure**, in the same turn
-as the code that needs it. Then tell the owner to re-run `01_setup.ps1`, which is what installs it on
-both sides. `README.md` prints the command rather than a list, so **do not reintroduce a second copy of
+as the code that needs it. Then tell the owner to re-run `01_setup.ps1`: it installs the module inside
+WSL2 and, on Windows, `00_check_host.ps1` names it as missing with the `Install-Module` line that
+installs it. `README.md` prints the command rather than a list, so **do not reintroduce a second copy of
 the module names anywhere** — the sibling had exactly that and its two lists drifted twice.
 
 The ADO.NET drivers are not in that list: `Import-OraLibrary` and `Import-PgLibrary` download
@@ -218,6 +267,7 @@ out in `05` on purpose.
 
 | Path | What it is |
 | --- | --- |
+| `00_check_host.ps1` | Checks that this machine has what the setup will not install: PowerShell 7.5, the modules in `modules.txt`, and a WSL2 default distribution with `apt-get`. Names every missing piece at once with the command that fixes it, and changes nothing. `01_setup.ps1` runs it first; it is also safe to run alone. |
 | `01_setup.ps1` … `06_test_connections.ps1` | One-time setup, started from Windows, shells into WSL2. `01_setup.ps1` orchestrates the rest. It **builds only** — it stops the containers again at the end. |
 | `07_check_ports.ps1` | **Not part of the setup sequence.** A read-only diagnostic for when the Windows half cannot reach a database: per published port, whether Windows has a `wslrelay` listener and whether a connection gets through. |
 | `modules.txt` | The one list of PowerShell modules. Both installs read it; nothing else enumerates them. |

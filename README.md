@@ -38,6 +38,31 @@ Some functionality can be used (and some can be changed to work) with Windows Po
 
 The code is both tested on Windows 11 and an Ubuntu WSL2.
 
+## What you install, and what the setup installs
+
+**The setup installs into WSL2 and into this repository. It installs nothing on your machine and
+changes nothing about how your machine is configured** - in particular it does not make the PSGallery
+a trusted repository for you, which it used to do and which is not this repository's decision to make.
+
+Your machine needs three things, and that is the whole list:
+
+1. **PowerShell 7.5 or later**, which is what the demos ask for.
+2. **The modules in `modules.txt`**, installed for your user:
+   ```powershell
+   Install-Module -Name (Get-Content ./modules.txt) -Scope CurrentUser
+   ```
+   The PSGallery may ask you to confirm that you trust it. That prompt is the point.
+3. **WSL2**, with a default distribution - see [Install WSL2](#install-wsl2) below. Everything else the
+   setup needs goes inside it, and you can throw it away and start again at any time.
+
+`00_check_host.ps1` checks all three, names every one that is missing together with the command that
+installs it, and changes nothing. `01_setup.ps1` runs it first, and you can run it on its own whenever
+you like:
+
+```powershell
+.\00_check_host.ps1
+```
+
 
 
 ## Repository layout
@@ -254,14 +279,19 @@ WSL2 for most of them, and finishes on the Windows side:
 
 | Step | Runs as | What it does |
 | --- | --- | --- |
-| `03_pwsh_setup.ps1 -Scope CurrentUser` | you, on Windows | The modules in `modules.txt`, and the database drivers into `lib/` - Oracle, Npgsql and Confluent.Kafka with the Windows build of its native librdkafka. First, because it is the only step that costs nothing when it fails |
+| `00_check_host.ps1` | you, on Windows | Checks that this machine has PowerShell 7.5, the modules in `modules.txt` and a WSL2 distribution, and stops with a list if it has not. Installs nothing. First, because it is the only step that costs nothing when it fails |
 | `02_wsl2_setup.sh` | root, in WSL2 | PowerShell, Docker and 7-Zip |
-| `03_pwsh_setup.ps1 -Scope AllUsers` | root, in WSL2 | The same modules again, machine-wide so that the PhotoService container can mount them - and the Linux build of librdkafka next to the Windows one, which the container needs. Both driver steps run before the containers start, because `lib/` is mounted read only into the PhotoService container and it can load a driver but never download one |
+| `03_pwsh_setup.ps1` | root, in WSL2 | The modules in `modules.txt`, machine-wide so that the PhotoService container can mount them - and the database drivers into `lib/`, including the Linux build of librdkafka that the container needs |
+| `03_pwsh_setup.ps1` again | you, on Windows | The same script, which on Windows only downloads the drivers into `lib/` - Oracle, Npgsql and Confluent.Kafka with the *Windows* build of its native librdkafka - and loads them, which is the check that this side can. It installs nothing on your machine. Both driver steps run before the containers start, because `lib/` is mounted read only into the PhotoService container and it can load a driver but never download one |
 | `04_docker_compose.sh` | root, in WSL2 | Waits for the docker daemon, starts the containers, and waits until SQL Server, PostgreSQL, MongoDB and Oracle have created the demo databases |
 | `05_sample_data_setup.ps1` | you, in WSL2 | Creates the Excel files from `sample.json` and downloads the StackExchange and Geodata samples. A download is skipped when its files are already there; `-Force` fetches them again |
 | `06_test_connections.ps1` | you, in WSL2 | Opens a connection to every database a demo uses |
 | `06_test_connections.ps1` again | you, on Windows | Waits until Windows can reach the container ports, then runs the same check from the side that runs the demos |
 | `docker compose stop` | root, in WSL2 | Stops the containers again. The setup is finished; `start_demo.ps1` is what starts a demo |
+
+Every step announces itself before it runs, and the slow ones say roughly how long they take -
+`04_docker_compose.sh` is quiet for up to fifteen minutes the first time, because Oracle is creating its
+database, and a quiet stretch with no output is hard to tell from a script that has hung.
 
 The first and last rows are not an afterthought. The demos are usually run from Windows, so without them
 the setup can finish green while a module or a driver is missing on that side. And the two runs of `06`
