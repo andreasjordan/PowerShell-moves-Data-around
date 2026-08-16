@@ -123,25 +123,34 @@ nothing, so it is safe to run at any time.
 reading it is a well known trap; an answer that comes from inside the distribution has no such
 problem, and it proves the thing that matters — that a default distribution exists and starts.
 
-### Two setup improvements on the list, agreed and not done
+### Every step announces itself, and says what it cost
 
-Both are the owner's, both are low priority, and both apply to **this repository and the sibling** —
-so do them on both sides in one turn. Do not treat either as a finding, and do not do them as a side
-effect of an unrelated task.
+`Write-Step` in `01_setup.ps1` prints a banner before each step with the wall-clock time it started,
+the slow ones say roughly how long they take, and each step is closed off with what it actually took.
+The last line reports the total. This exists because **a quiet stretch is indistinguishable from a
+hung script**: `04_docker_compose.sh` is silent for about two minutes while it waits for Oracle. The
+Windows port wait prints one line per port for the same reason — a forward that lags the others by
+minutes looks exactly like a hang.
 
-1. **Timestamps in the step messages**, so that the actual timing of a run can be read off the output
-   instead of guessed at.
-2. **Quieten the noisy commands**, `apt-get` in `02_wsl2_setup.sh` above all, so that a run does not
-   fill the terminal. Keep the failure output loud while doing it: `04_docker_compose.sh` prints
-   `docker compose logs --tail 50` on its failure path precisely because a silent probe explains
-   nothing, and that is the opposite trade from this one.
+The measured `took` lines exist because the estimates have been wrong: Oracle's first start was
+written down as a quarter of an hour and is about two minutes. A run now reports its own timing
+rather than leaving it to be remembered. Note that the durations are floored, not rounded — casting a
+`TimeSpan`'s `TotalMinutes` with `[int]` rounds, so 59 seconds would print as `1:59`.
 
-### Every step of `01_setup.ps1` announces itself
+**The clock is local time and the container logs are UTC.** That difference is what makes a failure
+here and the container log behind it look unrelated at a glance.
 
-`Write-Step` prints a banner before each step, and the slow ones say roughly how long they take.
-This exists because **a quiet stretch is indistinguishable from a hung script**: `04_docker_compose.sh`
-is silent for about two minutes while it waits for Oracle. The Windows port wait prints one line per
-port for the same reason — a forward that lags the others by minutes looks exactly like a hang.
+`02_wsl2_setup.sh` has the same idea in shell: a `step` function that echoes one timestamped line per
+block. **That is load-bearing rather than decoration**, because `apt` is quietened in the same file.
+`apt_get()` sends stdout to `/dev/null` and keeps stderr, so a failure still says why and `set -e`
+still stops the script — but without the step lines, quietening apt would replace several hundred
+lines with a silent multi-minute stretch, which is the very thing the banners exist to prevent. It is
+`apt-get` rather than `apt` throughout, because `apt` warns about its unstable CLI on stderr, which
+is the stream being kept.
+
+**Do not quieten a failure path the same way.** `04_docker_compose.sh` prints
+`docker compose logs --tail 50` when a wait gives up precisely because a silent probe explains
+nothing, and that is the opposite trade from this one.
 
 `Write-Step` is defined inside `01_setup.ps1` and does not follow the `lib/` function contract,
 which says so where it is defined.

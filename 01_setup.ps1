@@ -1,20 +1,39 @@
 $ErrorActionPreference = 'Stop'
 
-# Every step announces itself before it runs, and the slow ones say how long they take.
+# Every step announces itself before it runs, says roughly how long it takes, and is closed off
+# with what it actually took.
 #
-# Two stretches of this script are quiet for minutes - 04_docker_compose.sh while Oracle creates
-# its database, and the port wait near the end - and a quiet stretch with no output is
-# indistinguishable from a script that has hung. Saying what is happening and roughly how long it
-# takes is the whole fix.
+# Two stretches of this script are quiet for minutes - 04_docker_compose.sh while Oracle starts,
+# and the port wait near the end - and a quiet stretch with no output is indistinguishable from a
+# script that has hung. Saying what is happening and roughly how long it takes is the whole fix.
+#
+# The measured "took" line exists because the estimates have been wrong: Oracle's first start was
+# written down as a quarter of an hour for a long time and is about two minutes. A run now says so
+# itself rather than leaving it to be guessed at.
+#
+# The clock is local time, while the container logs are UTC. That difference is what makes a
+# failure here and the container log behind it look unrelated at a glance.
 #
 # Write-Host rather than Write-PSFMessage, and this helper does not follow the lib/ function
 # contract: the first step below is the one that checks whether PSFramework is installed at all.
+$script:stepStarted = $null
+
 function Write-Step {
     param ([string]$Message, [string]$Duration)
+
+    # Floor, not [int]: casting a double to [int] rounds, so 59 seconds would print as "1:59"
+    if ($script:stepStarted) {
+        $took = (Get-Date) - $script:stepStarted
+        Write-Host ('    took {0:0}:{1:00}' -f [math]::Floor($took.TotalMinutes), $took.Seconds) -ForegroundColor DarkGray
+    }
+
+    $script:stepStarted = Get-Date
     Write-Host ''
-    Write-Host "==> $Message" -ForegroundColor Cyan
+    Write-Host ('==> [{0:HH:mm:ss}] {1}' -f $script:stepStarted, $Message) -ForegroundColor Cyan
     if ($Duration) { Write-Host "    $Duration" -ForegroundColor DarkGray }
 }
+
+$runStarted = Get-Date
 
 # Check this machine
 # The setup owns WSL2 and this repository, and nothing else - so the things this script cannot
@@ -47,7 +66,7 @@ Write-Step -Message 'Shutting WSL2 down, which docker needs'
 wsl --shutdown
 
 # Start docker containers
-Write-Step -Message 'Starting the containers and waiting for the demo databases' -Duration 'about two minutes, measured - the 15 minute timeout in 04 is a margin, not an expectation'
+Write-Step -Message 'Starting the containers and waiting for the demo databases' -Duration 'about two minutes once the images are there, four on a run that pulls them - the 15 minute timeout in 04 is a margin, not an expectation'
 wsl --cd $PSScriptRoot --user root ./04_docker_compose.sh
 if ($LASTEXITCODE -ne 0) { throw 'failure in 04_docker_compose.sh'}
 
@@ -128,4 +147,7 @@ Stop-Process -InputObject $keepWsl2Alive -ErrorAction Ignore
 
 if ($windowsTestFailed) { throw 'failure in 06_test_connections.ps1 on Windows'}
 
-Write-Step -Message 'Finished. Run start_demo.ps1 when you want to demo.'
+# The total, so that "the whole run takes about half an hour" in README.md stays a measurement
+# rather than a memory
+$total = (Get-Date) - $runStarted
+Write-Step -Message ('Finished in {0:0}:{1:00}. Run start_demo.ps1 when you want to demo.' -f [math]::Floor($total.TotalMinutes), $total.Seconds)

@@ -286,9 +286,11 @@ WSL2 for most of them, and finishes on the Windows side:
 | `06_test_connections.ps1` again | you, on Windows | Waits until Windows can reach the container ports, then runs the same check from the side that runs the demos |
 | `docker compose stop` | root, in WSL2 | Stops the containers again. The setup is finished; `start_demo.ps1` is what starts a demo |
 
-Every step announces itself before it runs, and the slow ones say roughly how long they take -
-`04_docker_compose.sh` is quiet for about two minutes while it waits for Oracle, and a quiet stretch
-with no output is hard to tell from a script that has hung.
+Every step announces itself before it runs with the time it started, the slow ones say roughly how
+long they take, and each one is closed off with what it actually took - so the timing of a run can be
+read off the output afterwards rather than guessed at. `04_docker_compose.sh` is quiet for about two
+minutes while it waits for Oracle, and a quiet stretch with no output is hard to tell from a script
+that has hung. The times are local, while the container logs are UTC.
 
 The first and last rows are not an afterthought. The demos are usually run from Windows, so without them
 the setup can finish green while a module or a driver is missing on that side. And the two runs of `06`
@@ -306,7 +308,13 @@ A failure in the connection test from Windows does not stop the script before th
 script reports the failure once the containers are down, and `start_demo.ps1` brings them back in a
 minute if you want to look into it.
 
-The whole run takes about half an hour. If you are installing both repositories, see
+The whole run takes about ten to fifteen minutes - measured at 12:05 on a reinstalled WSL2, with the
+SQL Server and Oracle images loaded from local tars and the sample data already downloaded. A
+genuinely fresh clone pulls those two images from their registries and downloads about 15 MB of
+sample data as well, so allow more. The last line of the script reports the total, which is the
+number to trust on your machine.
+
+If you are installing both repositories, see
 [Sharing one WSL2 installation with the sibling repository](#sharing-one-wsl2-installation-with-the-sibling-repository).
 
 
