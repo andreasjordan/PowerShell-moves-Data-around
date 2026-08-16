@@ -50,7 +50,7 @@ that it is not rediscovered as a new finding and not fixed as a side effect of a
 | Stored timestamps are truncated to milliseconds, since 2026-08-16 | `Get-LocalTimestamp` hands over whole milliseconds because every column that receives one is `TIMESTAMP(3)`. Before that the topic carried `09:46:49.0523691` while PostgreSQL held `09:46:49.052`, so a replay through demo 06 landed a different value in SQL Server than demo 04's direct transfer — 241 of 241 `created_at` and 215 of 241 `updated_at`, all sub-millisecond. This is the residue entry 19 left behind when it fixed the time zone half. |
 | The Azure SQL bonus sections | At the end of `demo/02_stackexchange.ps1` and `demo/04_photoservice.ps1`. They need Azure resources, the `Az` module, a firewall rule and two environment variables, so they are not local and are not part of a normal run. |
 | **The full install is done and the driver ordering is finally observed** | On 2026-08-16, from a reinstalled WSL2 with `lib/` empty, `01_setup.ps1` ran start to finish in its rewritten shape — host check first, no host installs, per-step banners — for this repository and then the sibling, with no problems. The timestamps close the question that had been open twice: all fourteen driver files were created at **13:26:27–13:26:44**, in two bursts (`librdkafka.so` at :35 from the WSL2 run, the Windows natives at :43–:44 from the Windows run), and the PhotoService container was created at **13:28:41** — nearly two minutes later. So `03_pwsh_setup.ps1` really does fill `lib/` before `04_docker_compose.sh` starts the container that mounts it read only. Windows `CreationTime` is what settles this; `ctime` inside WSL2 is uniform across the whole directory and tells you nothing. |
-| **Oracle takes about two minutes, not fifteen** | Measured on 2026-08-16 on a volume created that minute: the container was created at 13:28:41 and logged `DATABASE IS READY TO USE!` at 13:30:23 — **1 minute 42 seconds**, of which the Oracle process itself was 26. There is **no database-creation phase at all**; the image ships a prebuilt XE and starts it. The 15 minutes in `wait_for` is a timeout margin and was never a measurement. **Several older claims elsewhere still read as though it were** — "Oracle's first start is most of the time this script takes", "a quarter of an hour of Oracle starting up", "`down -v` is a twenty-minute mistake". Those predate this measurement and have not been re-checked; `down -v` is still a bad idea for other reasons, but do not repeat the durations without measuring. |
+| **Oracle takes about two minutes, not fifteen** | Measured on 2026-08-16 on a volume created that minute: the container was created at 13:28:41 and logged `DATABASE IS READY TO USE!` at 13:30:23 — **1 minute 42 seconds**, of which the Oracle process itself was 26. There is **no database-creation phase at all**; the image ships a prebuilt XE and starts it. The 15 minutes in `wait_for` is a timeout margin and was never a measurement. **Several older claims elsewhere still read as though it were** — "Oracle's first start is most of the time this script takes", "a quarter of an hour of Oracle starting up", and the argument that installing both repositories "pays for Oracle's first start twice". Those predate this measurement and have not been re-checked; do not repeat the durations without measuring. The `down -v` rule under "Verifying a change" **has** been revised on the strength of it. |
 
 ## Demo scripts are stepped through, never run
 
@@ -160,8 +160,8 @@ Do not treat either as a finding, and do not do them as a side effect of an unre
 
 `Write-Step` prints a banner before each step, and the slow ones say roughly how long they take.
 This exists because **a quiet stretch is indistinguishable from a hung script**: the first step used
-to produce no output at all while it installed modules, and `04_docker_compose.sh` is silent for up
-to fifteen minutes while Oracle creates its database. The Windows port wait prints one line per port
+to produce no output at all while it installed modules, and `04_docker_compose.sh` is silent for
+about two minutes while it waits for Oracle. The Windows port wait prints one line per port
 for the same reason — a forward that lags the others by minutes looked exactly like a hang.
 
 `Write-Step` is defined inside `01_setup.ps1` and does not follow the `lib/` function contract,
@@ -423,13 +423,26 @@ On the owner's machine it is granted: WSL2 serves only these two repositories an
 so `wsl` and the setup scripts are allowed there. **If your `settings.local.json` does not grant it,
 the containers are off limits** — verify statically and say so, rather than starting anything.
 
-Where it is granted, two limits remain, and the second is a trap rather than a rule:
+Where it is granted, two limits remain:
 
 - **`wsl --unregister` needs the owner**, because putting the distribution back needs an elevated
   session. It stays denied even on the owner's machine.
-- **`docker compose down -v` is a twenty-minute mistake.** The `-v` deletes the volumes and getting
-  them back means another Oracle start. There is almost never a reason — `docker compose stop` keeps
-  the data and costs a minute.
+- **`docker compose down -v` needs asking first — but the reason changed on 2026-08-16.** This used to
+  read "a twenty-minute mistake", on the assumption that rebuilding meant another long Oracle start.
+  Measured, it is **about two minutes**: the image ships a prebuilt XE and there is no
+  database-creation phase, so `04_docker_compose.sh` on empty volumes returns as soon as Oracle is up.
+  The owner's position is that `down -v` is fine when it gets a clean lab.
+
+  So the cost is no longer time, it is **whatever state somebody has not saved** — a demo half stepped
+  through, a table being looked at, photos loaded into PostgreSQL by demo 4. Ask, and say what will go.
+  `docker compose stop` is still the right thing for merely switching repositories, because it keeps
+  the data and costs about the same.
+
+**One consequence worth taking advantage of.** The init SQL under `docker/` only runs on empty volumes,
+which is why entry 18 of `SIBLING-FINDINGS.md` migrated 22 columns with a hand-written
+`ALTER TABLE` pass generated from `sys.columns`, and why entry 1 could not fix two table owners without
+one. That workaround existed because rebuilding was believed to be expensive. It is not — **edit the
+init SQL and rebuild instead of writing a migration**, unless the volumes hold something worth keeping.
 
 **Hold WSL2 open before you start anything, and keep holding it.** WSL2 terminates the distribution a
 few seconds after its last process exits, and every container goes with it — so a stack started by one

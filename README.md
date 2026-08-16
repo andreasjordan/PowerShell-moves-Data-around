@@ -290,8 +290,8 @@ WSL2 for most of them, and finishes on the Windows side:
 | `docker compose stop` | root, in WSL2 | Stops the containers again. The setup is finished; `start_demo.ps1` is what starts a demo |
 
 Every step announces itself before it runs, and the slow ones say roughly how long they take -
-`04_docker_compose.sh` is quiet for up to fifteen minutes the first time, because Oracle is creating its
-database, and a quiet stretch with no output is hard to tell from a script that has hung.
+`04_docker_compose.sh` is quiet for about two minutes while it waits for Oracle, and a quiet stretch
+with no output is hard to tell from a script that has hung.
 
 The first and last rows are not an afterthought. The demos are usually run from Windows, so without them
 the setup can finish green while a module or a driver is missing on that side. And the two runs of `06`
@@ -359,6 +359,15 @@ wsl --cd "$PWD\docker" --user root docker compose down -v
 `-v` is the whole point - it removes the named volumes, and that is what actually deletes the data.
 Without it you get the restart described above. With it, every container starts empty and re-runs its
 init scripts, so all five scenarios' databases are created again exactly as the setup made them.
+
+**It costs about two minutes**, measured on 2026-08-16: the Oracle image ships a prebuilt database
+rather than creating one on first start, so there is no long rebuild to avoid. This used to be
+described as something close to a disaster, on the assumption that it meant another quarter of an hour
+of Oracle. It does not. Use it whenever you want a genuinely clean lab - the only thing it costs you is
+whatever you had not saved.
+
+It is also the only way to pick up a change to the init SQL under `docker/`, because those scripts run
+only when a volume is created.
 
 This costs another Oracle start, so budget about fifteen minutes. It does not re-download the images.
 
