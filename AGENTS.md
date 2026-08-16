@@ -290,7 +290,8 @@ out in `05` on purpose.
 | `data/<scenario>/` | Sample data per scenario. Generated and downloaded artifacts are gitignored; only `README.md` and `sample.json` (plus the photos) are committed. |
 | `demo/` | The five numbered demo scripts plus the per-scenario `init_*.ps1` connection bootstraps. |
 | `docker/` | `docker-compose.yaml`, the per-scenario database init SQL/sh/js, and the PhotoService application. |
-| `lib/` | 35 dot-sourced functions — the data access layer. The `*.dll` files are downloaded, not committed. |
+| `lib/` | 41 dot-sourced functions — the data access layer. The `*.dll` files are downloaded, not committed. |
+| `verify/` | The known-good numbers as runnable scripts, one per scenario, plus `Invoke-Verify.ps1` and `Verify-Common.ps1`. Needs the containers up. **Not a test suite** — see `verify/README.md`. |
 | `SIBLING-FINDINGS.md` | Work for the Python repository, written down on this side. Not a defect list for this one. |
 
 ## The lib/ naming grid
@@ -507,6 +508,26 @@ So when the containers are up and the owner has said it is allowed:
 If a change really cannot be verified — containers down, driver missing — say so plainly rather than
 claiming it works.
 
+#### `verify/` is these numbers, made runnable — start there
+
+Since 2026-08-16 the table below exists as scripts. **Run those instead of writing new ones**, and add
+to them rather than starting again in a scratchpad:
+
+```powershell
+.\verify\Invoke-Verify.ps1              # all six, ten to fifteen minutes
+.\verify\Invoke-Verify.ps1 -Only 06     # one scenario
+```
+
+97 checks over the six scenarios, all passing on 2026-08-16. `verify/README.md` says what each script
+covers, what it changes, and why two numbers are printed rather than asserted. It is **not** a test
+suite: no Pester, no CI, no fixtures, and `01_setup.ps1` does not call it.
+
+Building it found three bugs in the checks themselves in one afternoon — a `-is [DBNull]` guard that
+missed the `$null` the SQL Server driver returns, a set of failure patterns where `convert|int`
+matched three of four messages, and a Badges import missing the `-ColumnMap` the demo passes. Each
+read as a defect in this repository for a few minutes. That is the argument for the folder: a
+throwaway check takes its bugs with it.
+
 #### Known-good numbers, measured 2026-08-15 on both repositories
 
 Reproduce these rather than inventing a new check. Both sides were driven through their own shipped
@@ -518,7 +539,7 @@ functions and agreed on every one:
 | StackExchange import | 0 of 12220 differ on either timestamp column, on SQL Server, PostgreSQL and Oracle, **with no tolerance** since the `DATETIME2(3)` change |
 | Timesheets | **94** rows from the three `Department*.xlsx`, 3 departments, 4 people — the same 94 on both sides |
 | `countries.geojson` | 14643643 bytes, **258** features; PostGIS converts 258/258 with 0 invalid |
-| Oracle `TO_WKTGEOMETRY` | non-deterministic on purpose — seen at 31, 39, 40, 42 and 64 failures over the same 258 rows. **Do not "fix" this or write down a mechanism**; it is documented in the sibling's `DIFFERENCES.md` with four rejected explanations |
+| Oracle `TO_WKTGEOMETRY` | non-deterministic on purpose — seen at 26, 31, 39, 40, 42 and 64 failures over the same 258 rows. **Do not "fix" this or write down a mechanism**; it is documented in the sibling's `DIFFERENCES.md` with four rejected explanations. `verify/03_geodata.ps1` prints the count and deliberately does not assert it |
 | ProjectStatus | 9 rows after blanks are dropped, **8** after the `NEW PROJECTS:` heading is skipped, 4 rejected for 4 distinct reasons, 5 land after the colour retry, 3 handed back |
 | PhotoService photos | **24** images, **43.5 MB**, byte-identical by MD5 and length — and check they are not `NULL` first, because the `photo` rows exist with a `NULL` image until demo 4's first section loads them |
 | PhotoService transfer | first pass ~3.5 s, later passes ~0.37 s; the watermarks in the log are the point |
